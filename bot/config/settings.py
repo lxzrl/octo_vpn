@@ -34,9 +34,9 @@ class Config:
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     
     # Subscription Plans (in rubles)
-    PLAN_1_MONTH_PRICE = int(os.getenv('PLAN_1_MONTH_PRICE', 299))
-    PLAN_3_MONTH_PRICE = int(os.getenv('PLAN_3_MONTH_PRICE', 799))
-    PLAN_6_MONTH_PRICE = int(os.getenv('PLAN_6_MONTH_PRICE', 1499))
+    PLAN_1_MONTH_PRICE = int(os.getenv('PLAN_1_MONTH_PRICE', 167))
+    PLAN_3_MONTH_PRICE = int(os.getenv('PLAN_3_MONTH_PRICE', 676))
+    PLAN_6_MONTH_PRICE = int(os.getenv('PLAN_6_MONTH_PRICE', 1676))
     PLAN_12_MONTH_PRICE = int(os.getenv('PLAN_12_MONTH_PRICE', 2699))
     
     # Referral System
@@ -99,12 +99,7 @@ PAYMENT_METHODS = {
         'name': 'ЮMoney',
         'emoji': '💳',
         'description': 'Банковские карты, электронные кошельки'
-    },
-    'qiwi': {
-        'name': 'QIWI',
-        'emoji': '🥝',
-        'description': 'QIWI кошелек, банковские карты'
-    },
+    }
     'crypto': {
         'name': 'Криптовалюты',
         'emoji': '₿',
