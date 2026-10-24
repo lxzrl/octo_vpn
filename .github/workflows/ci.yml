@@ -44,6 +44,7 @@ jobs:
           docker network create remnawave-network
           docker compose -f docker-compose.yml -f deploy/bot/panel-network.yml config -q
           PANEL_DOMAIN=panel.example.com docker compose -f deploy/panel/caddy-compose.yml config -q
+          rm .env
       - name: Migrations are up to date
         run: uv run alembic upgrade head && uv run alembic check
       - name: Tests (SQLite)
