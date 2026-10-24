@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     # Сквады, в которые добавляется пользователь. Пусто = все сквады панели.
     remnawave_squads: Annotated[tuple[str, ...], NoDecode] = ()
 
+    # Значения ниже — начальные: админ может поменять их в боте (раздел «Настройки»).
     trial_days: int = 3
     # Канал, подписка на который нужна для пробного периода: @username или -100…
     # Пусто = проверка выключена.
@@ -76,14 +77,6 @@ class Settings(BaseSettings):
     @classmethod
     def _empty_to_none(cls, value: object) -> object:
         return value or None
-
-    @property
-    def channel_url(self) -> str | None:
-        if self.trial_channel_url:
-            return self.trial_channel_url
-        if self.trial_channel and self.trial_channel.startswith("@"):
-            return f"https://t.me/{self.trial_channel[1:]}"
-        return None
 
     @property
     def db_url(self) -> str:

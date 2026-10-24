@@ -1,5 +1,4 @@
 from datetime import UTC, datetime
-from itertools import count
 
 import pytest
 from aiogram import Bot, Dispatcher
@@ -11,7 +10,6 @@ from aiogram.methods import (
     SendMessage,
 )
 from aiogram.types import (
-    CallbackQuery,
     Message,
     PreCheckoutQuery,
     SuccessfulPayment,
@@ -34,31 +32,7 @@ from app.db.models import Payment, PaymentStatus, Plan, PromoCode, PromoKind, Su
 from app.db.models import User as DbUser
 from app.i18n import TranslatorHub
 from app.main import build_dispatcher
-from tests.fakes import CHAT, TG_USER, FakePanel, FakeSession
-
-ids = count(1)
-
-
-def message(text: str, from_user: User = TG_USER) -> Update:
-    return Update(
-        update_id=next(ids),
-        message=Message(
-            message_id=next(ids), date=datetime.now(UTC), chat=CHAT, from_user=from_user, text=text
-        ),
-    )
-
-
-def callback(data: str, from_user: User = TG_USER) -> Update:
-    return Update(
-        update_id=next(ids),
-        callback_query=CallbackQuery(
-            id=str(next(ids)),
-            from_user=from_user,
-            chat_instance="x",
-            data=data,
-            message=Message(message_id=1, date=datetime.now(UTC), chat=CHAT, text="old"),
-        ),
-    )
+from tests.fakes import CHAT, TG_USER, FakePanel, FakeSession, callback, ids, message
 
 
 @pytest.fixture
@@ -153,15 +127,6 @@ async def test_banned_user_is_ignored(
 
     await dp.feed_update(bot, message("/start"))
     assert fake.calls == []
-
-
-async def test_unfinished_sections_answer_with_alert(
-    dp: Dispatcher, bot: Bot, fake: FakeSession
-) -> None:
-    await dp.feed_update(bot, message("/start"))
-    await dp.feed_update(bot, callback(MenuCallback(action=MenuAction.SUPPORT).pack()))
-    answer = fake.calls[-1]
-    assert isinstance(answer, AnswerCallbackQuery) and answer.show_alert
 
 
 async def test_name_with_html_chars_is_escaped(dp: Dispatcher, bot: Bot, fake: FakeSession) -> None:

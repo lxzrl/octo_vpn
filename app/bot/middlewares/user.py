@@ -46,6 +46,13 @@ class UserMiddleware(BaseMiddleware):
         if user.is_banned and not _is_successful_payment(event):
             return None
 
+        if (
+            user.is_blocked_bot
+            and isinstance(event, Update)
+            and (event.message or event.callback_query)
+        ):
+            # Пользователь снова пишет боту: значит, разблокировал.
+            user.is_blocked_bot = False
         data["user"] = user
         data["i18n"] = self.translators.get(user.language or tg_user.language_code)
         return await handler(event, data)

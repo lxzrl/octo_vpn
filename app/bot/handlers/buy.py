@@ -9,18 +9,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.callbacks import MenuAction, MenuCallback, PayCallback, PlanCallback
 from app.bot.handlers.subscription import format_date
+from app.bot.handlers.support import user_label
 from app.bot.keyboards import (
     cancel_keyboard,
     checkout_keyboard,
     plans_keyboard,
     to_subscription_keyboard,
 )
-from app.bot.notify import send
+from app.bot.notify import AdminNotifier, send
 from app.bot.ui import show
 from app.config import Settings
 from app.db.models import Payment, PaymentProvider, Plan, PromoKind, User
 from app.i18n import Translator, TranslatorHub
 from app.services.money import rub
+from app.services.options import Options
 from app.services.payments import (
     ReferralReward,
     can_checkout,
@@ -72,13 +74,13 @@ async def on_plan(
     session: AsyncSession,
     user: User,
     i18n: Translator,
-    settings: Settings,
+    options: Options,
 ) -> None:
     plan = await session.get(Plan, callback_data.plan_id)
     if plan is None or not plan.is_active or plan.price_rub is None:
         await callback.answer(i18n("plan-unavailable"), show_alert=True)
         return
-    quote = await make_quote(session, user, plan, settings)
+    quote = await make_quote(session, user, plan, options.stars_rub_rate)
     lines = [
         i18n("checkout-plan", plan=i18n("plan-name", months=plan.months)),
         i18n("checkout-price", price=rub(quote.price_kop)),
@@ -108,10 +110,26 @@ async def finish_payment(
     settings: Settings,
     reward: ReferralReward | None,
     translators: TranslatorHub,
+    admins: AdminNotifier,
 ) -> None:
     """После фиксации оплаты: продлить подписку и сообщить пользователю и пригласившему."""
     # Оплата уже записана; сохраняем её до обращения к панели, чтобы не потерять при сбое.
     await session.commit()
+    plan = await session.get(Plan, payment.plan_id)
+    await admins.send(
+        bot,
+        translators.admin(
+            "adm-payment",
+            id=str(payment.id),
+            user=user_label(user),
+            plan=translators.admin("plan-name", months=plan.months) if plan else "—",
+            price=rub(payment.price_kop),
+            paid=rub(payment.paid_kop),
+            stars=payment.stars if payment.provider == PaymentProvider.STARS else 0,
+            balance=rub(payment.balance_used_kop),
+            discount=rub(payment.discount_kop),
+        ),
+    )
     if reward is not None:
         referrer_i18n = translators.get(reward.referrer.language)
         await send(
@@ -121,9 +139,12 @@ async def finish_payment(
         )
     try:
         await fulfill_payment(session, panel, payment, user)
-    except PanelError:
+    except PanelError as error:
         logger.exception("Оплата %s получена, но панель не продлила подписку", payment.id)
         await bot.send_message(user.id, i18n("payment-delayed"))
+        await admins.error(
+            bot, "panel", f"Панель недоступна: платёж #{payment.id} оплачен, но не выдан ({error})"
+        )
         return
     await session.commit()
     subscription = await get_subscription(session, user.id)
@@ -143,17 +164,21 @@ async def on_pay(
     user: User,
     i18n: Translator,
     settings: Settings,
+    options: Options,
     panel: VpnPanel,
     translators: TranslatorHub,
+    admins: AdminNotifier,
 ) -> None:
     plan = await session.get(Plan, callback_data.plan_id)
     if plan is None or not plan.is_active or plan.price_rub is None:
         await callback.answer(i18n("plan-unavailable"), show_alert=True)
         return
-    payment = await create_payment(session, user, plan, settings)
+    payment = await create_payment(session, user, plan, options)
     await callback.answer()
     if payment.provider == PaymentProvider.BALANCE:
-        await finish_payment(bot, session, panel, payment, user, i18n, settings, None, translators)
+        await finish_payment(
+            bot, session, panel, payment, user, i18n, settings, None, translators, admins
+        )
         return
     plan_name = i18n("plan-name", months=plan.months)
     await bot.send_invoice(
@@ -185,8 +210,10 @@ async def on_successful_payment(
     user: User,
     i18n: Translator,
     settings: Settings,
+    options: Options,
     panel: VpnPanel,
     translators: TranslatorHub,
+    admins: AdminNotifier,
 ) -> None:
     paid = message.successful_payment
     assert paid is not None
@@ -195,13 +222,15 @@ async def on_successful_payment(
         parse_payload(paid.invoice_payload),
         user,
         paid.telegram_payment_charge_id,
-        settings,
+        options,
     )
     if result is None:
         logger.warning("Повторное или неизвестное подтверждение оплаты: %s", paid.invoice_payload)
         return
     payment, reward = result
-    await finish_payment(bot, session, panel, payment, user, i18n, settings, reward, translators)
+    await finish_payment(
+        bot, session, panel, payment, user, i18n, settings, reward, translators, admins
+    )
 
 
 async def on_promo(callback: CallbackQuery, i18n: Translator, state: FSMContext) -> None:

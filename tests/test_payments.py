@@ -18,6 +18,7 @@ from app.db.models import (
 )
 from app.services.balance import change_balance, ledger_total
 from app.services.clock import as_utc, utcnow
+from app.services.options import defaults
 from app.services.payments import (
     can_checkout,
     complete_stars_payment,
@@ -32,6 +33,7 @@ from app.services.users import TelegramProfile, get_or_create_user
 from tests.fakes import FakePanel
 
 SETTINGS = Settings(bot_token="1:x", stars_rub_rate="2")
+OPTIONS = defaults(SETTINGS)
 
 
 @pytest.fixture
@@ -48,15 +50,15 @@ async def make_user(session: AsyncSession, user_id: int, referrer_id: int | None
 
 
 async def pay(session: AsyncSession, user: User, plan: Plan, charge: str = "ch") -> Payment:
-    payment = await create_payment(session, user, plan, SETTINGS)
-    result = await complete_stars_payment(session, payment.id, user, charge, SETTINGS)
+    payment = await create_payment(session, user, plan, OPTIONS)
+    result = await complete_stars_payment(session, payment.id, user, charge, OPTIONS)
     assert result is not None
     return result[0]
 
 
 async def test_quote_without_discount_or_balance(session: AsyncSession, plan: Plan) -> None:
     user = await make_user(session, 1)
-    quote = await make_quote(session, user, plan, SETTINGS)
+    quote = await make_quote(session, user, plan, OPTIONS.stars_rub_rate)
     assert (quote.to_pay_kop, quote.stars) == (20000, 100)
 
 
@@ -67,7 +69,7 @@ async def test_quote_applies_discount_then_balance(session: AsyncSession, plan: 
     await apply_promo(session, FakePanel(), user, "sale20")
     await change_balance(session, user, 5000, BalanceOperation.ADMIN)
 
-    quote = await make_quote(session, user, plan, SETTINGS)
+    quote = await make_quote(session, user, plan, OPTIONS.stars_rub_rate)
     assert quote.discount_kop == 4000
     assert quote.balance_used_kop == 5000
     assert quote.to_pay_kop == 11000 and quote.stars == 55
@@ -75,17 +77,17 @@ async def test_quote_applies_discount_then_balance(session: AsyncSession, plan: 
 
 async def test_stars_payment_full_cycle(session: AsyncSession, plan: Plan) -> None:
     user = await make_user(session, 1)
-    payment = await create_payment(session, user, plan, SETTINGS)
+    payment = await create_payment(session, user, plan, OPTIONS)
     assert payment.provider == PaymentProvider.STARS and payment.stars == 100
     assert await can_checkout(session, payment.id, user.id, 100, SETTINGS)
     assert not await can_checkout(session, payment.id, user.id, 99, SETTINGS)
     assert not await can_checkout(session, payment.id, 2, 100, SETTINGS)
 
-    result = await complete_stars_payment(session, payment.id, user, "charge-1", SETTINGS)
+    result = await complete_stars_payment(session, payment.id, user, "charge-1", OPTIONS)
     assert result is not None and result[0].status == PaymentStatus.PAID
     assert result[0].paid_kop == 20000
     # Telegram может прислать подтверждение повторно.
-    assert await complete_stars_payment(session, payment.id, user, "charge-1", SETTINGS) is None
+    assert await complete_stars_payment(session, payment.id, user, "charge-1", OPTIONS) is None
 
     panel = FakePanel()
     await fulfill_payment(session, panel, payment, user)
@@ -99,7 +101,7 @@ async def test_stars_payment_full_cycle(session: AsyncSession, plan: Plan) -> No
 async def test_balance_covers_whole_price(session: AsyncSession, plan: Plan) -> None:
     user = await make_user(session, 1)
     await change_balance(session, user, 25000, BalanceOperation.ADMIN)
-    payment = await create_payment(session, user, plan, SETTINGS)
+    payment = await create_payment(session, user, plan, OPTIONS)
     assert payment.provider == PaymentProvider.BALANCE
     assert payment.status == PaymentStatus.PAID and payment.paid_kop == 0
     assert user.balance_kop == 5000
@@ -111,10 +113,10 @@ async def test_new_invoice_cancels_old_and_returns_reserved_balance(
 ) -> None:
     user = await make_user(session, 1)
     await change_balance(session, user, 5000, BalanceOperation.ADMIN)
-    first = await create_payment(session, user, plan, SETTINGS)
+    first = await create_payment(session, user, plan, OPTIONS)
     assert user.balance_kop == 0 and first.balance_used_kop == 5000
 
-    second = await create_payment(session, user, plan, SETTINGS)
+    second = await create_payment(session, user, plan, OPTIONS)
     assert first.status == PaymentStatus.CANCELLED
     assert second.balance_used_kop == 5000 and user.balance_kop == 0
     assert await ledger_total(session, user.id) == 0
@@ -122,7 +124,7 @@ async def test_new_invoice_cancels_old_and_returns_reserved_balance(
 
 async def test_expired_invoice_is_rejected_and_listed(session: AsyncSession, plan: Plan) -> None:
     user = await make_user(session, 1)
-    payment = await create_payment(session, user, plan, SETTINGS)
+    payment = await create_payment(session, user, plan, OPTIONS)
     payment.created_at = utcnow() - timedelta(minutes=SETTINGS.payment_ttl_minutes + 1)
     await session.flush()
     assert not await can_checkout(session, payment.id, user.id, payment.stars, SETTINGS)
@@ -133,13 +135,13 @@ async def test_referral_reward_first_then_next(session: AsyncSession, plan: Plan
     referrer = await make_user(session, 1)
     friend = await make_user(session, 2, referrer_id=1)
 
-    payment = await create_payment(session, friend, plan, SETTINGS)
-    result = await complete_stars_payment(session, payment.id, friend, "c1", SETTINGS)
+    payment = await create_payment(session, friend, plan, OPTIONS)
+    result = await complete_stars_payment(session, payment.id, friend, "c1", OPTIONS)
     assert result is not None and result[1] is not None
     assert result[1].amount_kop == 4000  # 20% от 200 ₽
 
-    payment = await create_payment(session, friend, plan, SETTINGS)
-    result = await complete_stars_payment(session, payment.id, friend, "c2", SETTINGS)
+    payment = await create_payment(session, friend, plan, OPTIONS)
+    result = await complete_stars_payment(session, payment.id, friend, "c2", OPTIONS)
     assert result is not None and result[1] is not None
     assert result[1].amount_kop == 2000  # 10%
     assert referrer.balance_kop == 6000
@@ -156,7 +158,7 @@ async def test_no_referral_reward_for_balance_only_purchase(
     referrer = await make_user(session, 1)
     friend = await make_user(session, 2, referrer_id=1)
     await change_balance(session, friend, 20000, BalanceOperation.ADMIN)
-    await create_payment(session, friend, plan, SETTINGS)
+    await create_payment(session, friend, plan, OPTIONS)
     assert referrer.balance_kop == 0
 
 
@@ -166,5 +168,5 @@ async def test_discount_is_spent_by_payment(session: AsyncSession, plan: Plan) -
     await session.flush()
     await apply_promo(session, FakePanel(), user, "SALE")
     await pay(session, user, plan)
-    quote = await make_quote(session, user, plan, SETTINGS)
+    quote = await make_quote(session, user, plan, OPTIONS.stars_rub_rate)
     assert quote.discount_kop == 0

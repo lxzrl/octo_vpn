@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.bot.handlers.subscription import format_date
 from app.bot.keyboards import extend_keyboard, to_subscription_keyboard
-from app.bot.notify import send
+from app.bot.notify import AdminNotifier, send
 from app.config import Settings
 from app.db.models import User
 from app.i18n import TranslatorHub
@@ -34,6 +34,7 @@ class BackgroundJobs:
         panel: VpnPanel,
         translators: TranslatorHub,
         settings: Settings,
+        admins: AdminNotifier,
         interval_seconds: float = 60,
     ) -> None:
         self.bot = bot
@@ -41,6 +42,7 @@ class BackgroundJobs:
         self.panel = panel
         self.translators = translators
         self.settings = settings
+        self.admins = admins
         self.interval = interval_seconds
         self._task: asyncio.Task[None] | None = None
 
@@ -48,8 +50,13 @@ class BackgroundJobs:
         for job in (self.cancel_expired_payments, self.retry_fulfillment, self.send_reminders):
             try:
                 await job()
-            except Exception:
+            except Exception as error:
                 logger.exception("Фоновая задача %s упала", job.__name__)
+                await self.admins.error(
+                    self.bot,
+                    f"job:{job.__name__}",
+                    f"Фоновая задача {job.__name__} упала: {error!r}",
+                )
 
     async def cancel_expired_payments(self) -> None:
         async with self.session_factory() as session:
@@ -64,8 +71,13 @@ class BackgroundJobs:
                 assert user is not None
                 try:
                     await fulfill_payment(session, self.panel, payment, user)
-                except PanelError:
+                except PanelError as error:
                     logger.warning("Панель всё ещё недоступна, платёж %s ждёт", payment.id)
+                    await self.admins.error(
+                        self.bot,
+                        "panel",
+                        f"Панель недоступна: оплаченный платёж #{payment.id} ждёт выдачи ({error})",
+                    )
                     return
                 await session.commit()
                 subscription = await get_subscription(session, user.id)

@@ -1,6 +1,7 @@
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
+from decimal import Decimal
 
 from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +19,7 @@ from app.db.models import (
 from app.services.balance import change_balance
 from app.services.clock import as_utc, utcnow
 from app.services.money import percent_of, stars_for
+from app.services.options import Options
 from app.services.promo import pending_discount
 from app.services.subscriptions import extend_subscription
 from app.vpn.panel import VpnPanel
@@ -38,7 +40,7 @@ class Quote:
     promo_activation_id: int | None
 
 
-async def make_quote(session: AsyncSession, user: User, plan: Plan, settings: Settings) -> Quote:
+async def make_quote(session: AsyncSession, user: User, plan: Plan, rate: Decimal) -> Quote:
     """Итог к оплате: сначала скидка по промокоду, затем баланс, остаток — звёздами."""
     if plan.price_rub is None:
         raise ValueError(f"Plan {plan.id} has no price")
@@ -55,7 +57,7 @@ async def make_quote(session: AsyncSession, user: User, plan: Plan, settings: Se
         discount_kop=discount_kop,
         balance_used_kop=balance_used,
         to_pay_kop=to_pay,
-        stars=stars_for(to_pay, settings.stars_rub_rate),
+        stars=stars_for(to_pay, rate),
         promo_activation_id=discount[0].id if discount else None,
     )
 
@@ -84,7 +86,7 @@ async def cancel_payment(session: AsyncSession, payment: Payment) -> None:
 
 
 async def create_payment(
-    session: AsyncSession, user: User, plan: Plan, settings: Settings
+    session: AsyncSession, user: User, plan: Plan, options: Options
 ) -> Payment:
     """Создаёт платёж и резервирует баланс. Если баланса хватает, платёж сразу оплачен."""
     await session.refresh(user, with_for_update=True)
@@ -94,7 +96,7 @@ async def create_payment(
     ):
         await cancel_payment(session, old)
 
-    quote = await make_quote(session, user, plan, settings)
+    quote = await make_quote(session, user, plan, options.stars_rub_rate)
     payment = Payment(
         user_id=user.id,
         plan_id=plan.id,
@@ -113,7 +115,7 @@ async def create_payment(
         session, user, -quote.balance_used_kop, BalanceOperation.PURCHASE, payment_id=payment.id
     )
     if not quote.to_pay_kop:
-        await mark_paid(session, payment, user, settings, charge_id=None)
+        await mark_paid(session, payment, user, options, charge_id=None)
     return payment
 
 
@@ -149,7 +151,7 @@ async def mark_paid(
     session: AsyncSession,
     payment: Payment,
     user: User,
-    settings: Settings,
+    options: Options,
     charge_id: str | None,
 ) -> ReferralReward | None:
     """Фиксирует оплату: тратит скидку, начисляет рефереру. Подписку продлевает fulfill_payment."""
@@ -173,11 +175,11 @@ async def mark_paid(
         if activation is not None:
             activation.used_at = utcnow()
     await session.flush()
-    return await reward_referrer(session, payment, user, settings)
+    return await reward_referrer(session, payment, user, options)
 
 
 async def reward_referrer(
-    session: AsyncSession, payment: Payment, user: User, settings: Settings
+    session: AsyncSession, payment: Payment, user: User, options: Options
 ) -> ReferralReward | None:
     if payment.paid_kop <= 0 or user.referrer_id is None:
         return None
@@ -194,7 +196,7 @@ async def reward_referrer(
             )
         )
     )
-    percent = settings.referral_next_percent if had_paid_before else settings.referral_first_percent
+    percent = options.referral_next_percent if had_paid_before else options.referral_first_percent
     amount = percent_of(payment.paid_kop, percent)
     if amount <= 0:
         return None
@@ -214,7 +216,7 @@ async def complete_stars_payment(
     payment_id: int | None,
     user: User,
     charge_id: str,
-    settings: Settings,
+    options: Options,
 ) -> tuple[Payment, ReferralReward | None] | None:
     """Обрабатывает successful_payment. Повтор с тем же charge_id ничего не делает."""
     if payment_id is None:
@@ -223,7 +225,7 @@ async def complete_stars_payment(
     if payment is None or payment.user_id != user.id or payment.status == PaymentStatus.PAID:
         return None
     await session.refresh(user, with_for_update=True)
-    reward = await mark_paid(session, payment, user, settings, charge_id)
+    reward = await mark_paid(session, payment, user, options, charge_id)
     return payment, reward
 
 

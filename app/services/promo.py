@@ -1,4 +1,7 @@
+import re
+import secrets
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 
 from sqlalchemy import func, select, update
@@ -86,3 +89,43 @@ async def apply_promo(
     )
     await session.flush()
     return PromoApplied(PromoKind(promo.kind), promo.value)
+
+
+CODE = re.compile(r"^[A-Z0-9_-]{3,32}$")
+# Без похожих символов (0/O, 1/I), чтобы код было легко ввести руками.
+CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+class PromoCodeTaken(Exception):
+    pass
+
+
+def random_code(length: int = 8) -> str:
+    return "".join(secrets.choice(CODE_ALPHABET) for _ in range(length))
+
+
+def valid_code(raw: str) -> str | None:
+    code = normalize(raw)
+    return code if CODE.match(code) else None
+
+
+async def create_promo(
+    session: AsyncSession,
+    code: str,
+    kind: PromoKind,
+    value: int,
+    max_uses: int | None,
+    expires_at: datetime | None,
+) -> PromoCode:
+    code = normalize(code)
+    taken = await session.scalar(select(PromoCode.id).where(func.upper(PromoCode.code) == code))
+    if taken is not None:
+        raise PromoCodeTaken(code)
+    promo = PromoCode(code=code, kind=kind, value=value, max_uses=max_uses, expires_at=expires_at)
+    session.add(promo)
+    await session.flush()
+    return promo
+
+
+async def recent_promos(session: AsyncSession, limit: int = 20) -> list[PromoCode]:
+    return list(await session.scalars(select(PromoCode).order_by(PromoCode.id.desc()).limit(limit)))

@@ -8,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
@@ -163,4 +164,48 @@ class PromoActivation(Base):
         BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Option(Base):
+    """Настройка, изменённая из админки. Без записи действует значение из окружения."""
+
+    __tablename__ = "options"
+
+    key: Mapped[str] = mapped_column(String(32), primary_key=True)
+    value: Mapped[str] = mapped_column(String(255))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class TicketStatus(StrEnum):
+    OPEN = "open"
+    CLOSED = "closed"
+
+
+class Ticket(TimestampMixin, Base):
+    """Обращение в поддержку. У пользователя не больше одного открытого."""
+
+    __tablename__ = "tickets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[str] = mapped_column(String(16), default=TicketStatus.OPEN, index=True)
+    # Последнее сообщение от пользователя: обращение ждёт ответа поддержки.
+    awaiting_reply: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+
+
+class TicketMessage(Base):
+    __tablename__ = "ticket_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ticket_id: Mapped[int] = mapped_column(ForeignKey("tickets.id", ondelete="CASCADE"), index=True)
+    # Telegram ID автора: пользователь или админ.
+    author_id: Mapped[int] = mapped_column(BigInteger)
+    from_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    text: Mapped[str] = mapped_column(Text, default="")
+    photo_file_id: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

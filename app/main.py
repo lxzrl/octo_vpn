@@ -9,9 +9,12 @@ from aiogram.fsm.storage.base import BaseStorage
 from aiogram.fsm.storage.redis import RedisStorage
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.bot.handlers import buy, referral, start, subscription
+from app.bot.broadcast import Broadcaster
+from app.bot.handlers import admin, buy, referral, start, subscription, support
 from app.bot.middlewares.db import DbSessionMiddleware
+from app.bot.middlewares.options import OptionsMiddleware
 from app.bot.middlewares.user import UserMiddleware
+from app.bot.notify import AdminNotifier
 from app.config import Settings, get_settings
 from app.db.session import create_engine, create_session_factory
 from app.i18n import TranslatorHub
@@ -26,17 +29,24 @@ def build_dispatcher(
     translators: TranslatorHub,
     panel: VpnPanel,
     storage: BaseStorage | None = None,
+    admins: AdminNotifier | None = None,
+    broadcaster: Broadcaster | None = None,
 ) -> Dispatcher:
     dp = Dispatcher(storage=storage) if storage else Dispatcher()
     dp["settings"] = settings
     dp["translators"] = translators
     dp["panel"] = panel
+    dp["admins"] = admins or AdminNotifier(settings.admin_ids)
+    dp["broadcaster"] = broadcaster or Broadcaster(session_factory)
     dp.update.outer_middleware(DbSessionMiddleware(session_factory))
     dp.update.outer_middleware(UserMiddleware(translators))
+    dp.update.outer_middleware(OptionsMiddleware(settings))
+    # Админка первой: её ввод (ответ на обращение, рассылка) не должен уйти в другие разделы.
+    dp.include_router(admin.create_router())
     dp.include_router(subscription.create_router())
     dp.include_router(buy.create_router())
     dp.include_router(referral.create_router())
-    # Роутер start последним: в нём заглушка для ещё не готовых разделов меню.
+    dp.include_router(support.create_router())
     dp.include_router(start.create_router())
     return dp
 
@@ -59,10 +69,16 @@ async def run(settings: Settings) -> None:
     )
     session_factory = create_session_factory(engine)
     translators = TranslatorHub(settings.default_language)
+    admins = AdminNotifier(settings.admin_ids)
     dp = build_dispatcher(
-        settings, session_factory, translators, panel, RedisStorage.from_url(settings.redis_url)
+        settings,
+        session_factory,
+        translators,
+        panel,
+        RedisStorage.from_url(settings.redis_url),
+        admins,
     )
-    jobs = BackgroundJobs(bot, session_factory, panel, translators, settings)
+    jobs = BackgroundJobs(bot, session_factory, panel, translators, settings, admins)
     jobs.start()
     try:
         await dp.start_polling(bot)

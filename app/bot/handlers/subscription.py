@@ -16,12 +16,14 @@ from app.bot.keyboards import (
     platforms_keyboard,
     subscription_keyboard,
 )
+from app.bot.notify import AdminNotifier
 from app.bot.ui import show
 from app.config import Settings
 from app.db.models import Subscription, User
 from app.i18n import Translator
 from app.services.channel import ChannelCheckError, is_subscribed
 from app.services.clock import as_utc, utcnow
+from app.services.options import Options
 from app.services.subscriptions import (
     TrialStatus,
     activate_trial,
@@ -61,13 +63,16 @@ async def render_subscription(
     user: User,
     i18n: Translator,
     settings: Settings,
+    options: Options,
     header: str = "",
 ) -> None:
     subscription = await get_subscription(session, user.id)
     if subscription is None:
-        available = await trial_status(session, user) is TrialStatus.AVAILABLE
+        available = (
+            options.trial_enabled and await trial_status(session, user) is TrialStatus.AVAILABLE
+        )
         text = i18n(
-            "no-subscription-trial" if available else "no-subscription", days=settings.trial_days
+            "no-subscription-trial" if available else "no-subscription", days=options.trial_days
         )
         await show(callback, text, no_subscription_keyboard(i18n, available))
         return
@@ -80,9 +85,14 @@ async def render_subscription(
 
 
 async def on_subscription(
-    callback: CallbackQuery, session: AsyncSession, user: User, i18n: Translator, settings: Settings
+    callback: CallbackQuery,
+    session: AsyncSession,
+    user: User,
+    i18n: Translator,
+    settings: Settings,
+    options: Options,
 ) -> None:
-    await render_subscription(callback, session, user, i18n, settings)
+    await render_subscription(callback, session, user, i18n, settings, options)
 
 
 async def on_trial(
@@ -92,37 +102,43 @@ async def on_trial(
     user: User,
     i18n: Translator,
     settings: Settings,
+    options: Options,
     panel: VpnPanel,
+    admins: AdminNotifier,
 ) -> None:
+    if not options.trial_enabled:
+        await callback.answer(i18n("trial-disabled"), show_alert=True)
+        return
     if await trial_status(session, user) is not TrialStatus.AVAILABLE:
         await callback.answer(i18n("trial-already-used"), show_alert=True)
         return
 
-    if settings.trial_channel:
+    if options.trial_channel:
         try:
-            subscribed = await is_subscribed(bot, settings.trial_channel, user.id)
+            subscribed = await is_subscribed(bot, options.trial_channel, user.id)
         except ChannelCheckError:
             await callback.answer(i18n("error-try-later"), show_alert=True)
             return
         if not subscribed:
             await show(
                 callback,
-                i18n("trial-need-channel", days=settings.trial_days),
-                channel_keyboard(i18n, settings.channel_url),
+                i18n("trial-need-channel", days=options.trial_days),
+                channel_keyboard(i18n, options.channel_url),
             )
             return
 
     try:
-        subscription = await activate_trial(session, panel, user, settings.trial_days)
-    except PanelError:
+        subscription = await activate_trial(session, panel, user, options.trial_days)
+    except PanelError as error:
         logger.exception("Не удалось выдать пробный период пользователю %s", user.id)
         await callback.answer(i18n("error-try-later"), show_alert=True)
+        await admins.error(bot, "panel", f"Панель недоступна: не выдан пробный период ({error})")
         return
     if subscription is None:
         await callback.answer(i18n("trial-already-used"), show_alert=True)
         return
     await render_subscription(
-        callback, session, user, i18n, settings, header=i18n("trial-activated")
+        callback, session, user, i18n, settings, options, header=i18n("trial-activated")
     )
 
 

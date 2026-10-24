@@ -2,6 +2,8 @@ from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.bot.callbacks import (
+    AdminAction,
+    AdminCallback,
     LanguageCallback,
     MenuAction,
     MenuCallback,
@@ -33,7 +35,7 @@ def language_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def main_menu_keyboard(i18n: Translator) -> InlineKeyboardMarkup:
+def main_menu_keyboard(i18n: Translator, is_admin: bool = False) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for action, key in (
         (MenuAction.SUBSCRIPTION, "btn-subscription"),
@@ -43,7 +45,9 @@ def main_menu_keyboard(i18n: Translator) -> InlineKeyboardMarkup:
         (MenuAction.PROFILE, "btn-profile"),
     ):
         builder.button(text=i18n(key), callback_data=MenuCallback(action=action))
-    builder.adjust(1, 1, 2, 1)
+    if is_admin:
+        builder.button(text=i18n("btn-admin"), callback_data=AdminCallback(action=AdminAction.MENU))
+    builder.adjust(1, 1, 2, 1, 1)
     return builder.as_markup()
 
 
@@ -172,4 +176,22 @@ def referral_keyboard(i18n: Translator, share_url: str) -> InlineKeyboardMarkup:
     builder.button(text=i18n("btn-share"), url=share_url)
     _menu_button(builder, i18n, "btn-back", MenuAction.MAIN)
     builder.adjust(1)
+    return builder.as_markup()
+
+
+def support_keyboard(i18n: Translator, has_ticket: bool) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if has_ticket:
+        _menu_button(builder, i18n, "btn-support-write", MenuAction.SUPPORT_WRITE)
+        _menu_button(builder, i18n, "btn-support-close", MenuAction.SUPPORT_CLOSE)
+    else:
+        _menu_button(builder, i18n, "btn-support-new", MenuAction.SUPPORT_WRITE)
+    _menu_button(builder, i18n, "btn-back", MenuAction.MAIN)
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def support_reply_keyboard(i18n: Translator) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    _menu_button(builder, i18n, "btn-support-reply", MenuAction.SUPPORT_WRITE)
     return builder.as_markup()

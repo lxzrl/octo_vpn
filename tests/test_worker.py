@@ -5,11 +5,13 @@ from aiogram import Bot
 from aiogram.methods import SendMessage
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.bot.notify import AdminNotifier
 from app.config import Settings
 from app.db.models import BalanceOperation, Payment, PaymentStatus, Plan, User
 from app.i18n import TranslatorHub
 from app.services.balance import change_balance
 from app.services.clock import utcnow
+from app.services.options import defaults
 from app.services.payments import complete_stars_payment, create_payment
 from app.services.subscriptions import extend_subscription
 from app.worker import BackgroundJobs
@@ -33,7 +35,12 @@ def jobs(
     fake: FakeSession, panel: FakePanel, session_factory: async_sessionmaker[AsyncSession]
 ) -> BackgroundJobs:
     return BackgroundJobs(
-        Bot("42:TEST", session=fake), session_factory, panel, TranslatorHub("ru"), SETTINGS
+        Bot("42:TEST", session=fake),
+        session_factory,
+        panel,
+        TranslatorHub("ru"),
+        SETTINGS,
+        AdminNotifier(SETTINGS.admin_ids),
     )
 
 
@@ -52,8 +59,8 @@ async def test_retries_paid_but_unfulfilled_payment(
         plan = Plan(months=1, days=30, price_rub=100)
         session.add_all([user, plan])
         await session.flush()
-        payment = await create_payment(session, user, plan, SETTINGS)
-        await complete_stars_payment(session, payment.id, user, "c", SETTINGS)
+        payment = await create_payment(session, user, plan, defaults(SETTINGS))
+        await complete_stars_payment(session, payment.id, user, "c", defaults(SETTINGS))
         await session.commit()
 
     panel.fail = True
@@ -77,7 +84,7 @@ async def test_cancels_expired_invoice_and_refunds(
         session.add_all([user, plan])
         await session.flush()
         await change_balance(session, user, 3000, BalanceOperation.ADMIN)
-        payment = await create_payment(session, user, plan, SETTINGS)
+        payment = await create_payment(session, user, plan, defaults(SETTINGS))
         payment.created_at = utcnow() - timedelta(hours=2)
         await session.commit()
 

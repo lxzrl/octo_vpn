@@ -31,6 +31,8 @@ class TranslatorHub:
             )
             for lang in LANGUAGES
         }
+        # Админка только на русском: её видят несколько человек, переводить незачем.
+        self.admin = Translator(FluentLocalization(["ru"], ["admin.ftl", "main.ftl"], loader), "ru")
 
     def get(self, language: str | None) -> Translator:
         if language in self._translators:

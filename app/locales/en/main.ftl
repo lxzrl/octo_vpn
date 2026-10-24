@@ -24,8 +24,6 @@ profile =
     Language: { $language }
     Balance: { $balance }
 
-coming-soon = This section is coming soon
-
 btn-trial = 🎁 Try for free
 btn-connect = 📲 How to connect
 btn-subscription-page = 🌐 Subscription page
@@ -182,3 +180,35 @@ reminder-3d = ⏳ Your subscription ends in 3 days, on { $date }.
 reminder-1d = ⏳ Your subscription ends tomorrow, { $date }.
 reminder-1h = ⏰ Your subscription ends in an hour. Extend it now so the VPN keeps working.
 reminder-expired = ⛔ Your subscription has ended. Extend it to get access back: the link in your app stays the same.
+
+btn-admin = 🛠 Admin
+trial-disabled = The free trial is not available right now
+
+admin-extended = 🎁 You got { days } of subscription. It is now active until { $date }.
+admin-balance-added = 💰 { $amount } has been added to your balance.
+
+btn-support-new = ✍️ Contact support
+btn-support-write = ✍️ Write
+btn-support-close = ✅ Close the request
+btn-support-reply = ✍️ Reply
+
+support-intro =
+    💬 <b>Support</b>
+
+    Describe the problem in one message, you can attach a screenshot. The answer will come here, in the bot.
+support-ticket =
+    💬 <b>Request #{ $id }</b>
+
+    { $history }
+support-write = ✍️ Write your message. You can send a screenshot with a caption.
+support-empty = Please send text or a photo.
+support-sent = ✅ Your message has been sent to support. The answer will come here.
+support-closed = ✅ The request is closed. If you have more questions, write to us again.
+support-closed-by-admin = ✅ Request #{ $id } is closed. If you still have questions, contact support again.
+support-reply =
+    💬 <b>Support reply</b> (request #{ $id }):
+
+    { $text }
+support-photo = 🖼
+support-author-you = 👤 You
+support-author-support = 🛟 Support

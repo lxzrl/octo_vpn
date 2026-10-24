@@ -4,7 +4,8 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 
 async def show(callback: CallbackQuery, text: str, markup: InlineKeyboardMarkup) -> None:
     """Перерисовывает экран в том же сообщении, а если это невозможно, присылает новое."""
-    if isinstance(callback.message, Message):
+    # Сообщение с фото (например, уведомление об обращении) в текст не превратить.
+    if isinstance(callback.message, Message) and callback.message.text is not None:
         try:
             await callback.message.edit_text(text, reply_markup=markup)
         except TelegramBadRequest as error:
