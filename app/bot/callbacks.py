@@ -11,6 +11,8 @@ class MenuAction(StrEnum):
     SUPPORT = "support"
     PROFILE = "profile"
     LANGUAGE = "lang"
+    TRIAL = "trial"
+    CONNECT = "connect"
 
 
 class MenuCallback(CallbackData, prefix="menu"):
@@ -19,3 +21,14 @@ class MenuCallback(CallbackData, prefix="menu"):
 
 class LanguageCallback(CallbackData, prefix="setlang"):
     code: str
+
+
+class Platform(StrEnum):
+    IOS = "ios"
+    ANDROID = "android"
+    WINDOWS = "windows"
+    MACOS = "macos"
+
+
+class PlatformCallback(CallbackData, prefix="platform"):
+    platform: Platform

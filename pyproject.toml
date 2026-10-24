@@ -5,12 +5,14 @@ description = "Telegram-бот для продажи VPN-подписок"
 requires-python = ">=3.12"
 dependencies = [
     "aiogram>=3.13,<4",
+    "aiohttp>=3.9",
     "alembic>=1.13",
     "asyncpg>=0.29",
     "fluent.runtime>=0.4",
     "pydantic-settings>=2.4",
     "redis>=5.0",
     "sqlalchemy[asyncio]>=2.0.30",
+    "tzdata>=2024.1",
 ]
 
 [dependency-groups]

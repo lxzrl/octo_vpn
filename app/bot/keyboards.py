@@ -1,10 +1,18 @@
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.bot.callbacks import LanguageCallback, MenuAction, MenuCallback
+from app.bot.callbacks import LanguageCallback, MenuAction, MenuCallback, Platform, PlatformCallback
 from app.i18n import Translator
 
 LANGUAGE_BUTTONS = (("ru", "🇷🇺 Русский"), ("en", "🇬🇧 English"))
+
+# Рекомендуемый клиент — Happ: есть на всех платформах и умеет импорт подписки.
+APP_LINKS = {
+    Platform.IOS: "https://apps.apple.com/app/happ-proxy-utility/id6504287215",
+    Platform.MACOS: "https://apps.apple.com/app/happ-proxy-utility/id6504287215",
+    Platform.ANDROID: "https://github.com/Happ-proxy/happ-android/releases/latest",
+    Platform.WINDOWS: "https://github.com/Happ-proxy/happ-desktop/releases/latest",
+}
 
 
 def language_keyboard() -> InlineKeyboardMarkup:
@@ -41,5 +49,64 @@ def profile_keyboard(i18n: Translator) -> InlineKeyboardMarkup:
         text=i18n("btn-change-language"), callback_data=MenuCallback(action=MenuAction.LANGUAGE)
     )
     builder.button(text=i18n("btn-back"), callback_data=MenuCallback(action=MenuAction.MAIN))
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def _menu_button(
+    builder: InlineKeyboardBuilder, i18n: Translator, key: str, action: MenuAction
+) -> None:
+    builder.button(text=i18n(key), callback_data=MenuCallback(action=action))
+
+
+def no_subscription_keyboard(i18n: Translator, trial_available: bool) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if trial_available:
+        _menu_button(builder, i18n, "btn-trial", MenuAction.TRIAL)
+    _menu_button(builder, i18n, "btn-buy", MenuAction.BUY)
+    _menu_button(builder, i18n, "btn-back", MenuAction.MAIN)
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def subscription_keyboard(
+    i18n: Translator, subscription_url: str, active: bool
+) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if active:
+        _menu_button(builder, i18n, "btn-connect", MenuAction.CONNECT)
+        builder.button(text=i18n("btn-subscription-page"), url=subscription_url)
+    _menu_button(builder, i18n, "btn-extend", MenuAction.BUY)
+    _menu_button(builder, i18n, "btn-back", MenuAction.MAIN)
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def channel_keyboard(i18n: Translator, channel_url: str | None) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if channel_url:
+        builder.button(text=i18n("btn-open-channel"), url=channel_url)
+    _menu_button(builder, i18n, "btn-check-subscription", MenuAction.TRIAL)
+    _menu_button(builder, i18n, "btn-back", MenuAction.SUBSCRIPTION)
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def platforms_keyboard(i18n: Translator) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for platform in Platform:
+        builder.button(
+            text=i18n(f"platform-{platform.value}"),
+            callback_data=PlatformCallback(platform=platform),
+        )
+    _menu_button(builder, i18n, "btn-back", MenuAction.SUBSCRIPTION)
+    builder.adjust(2, 2, 1)
+    return builder.as_markup()
+
+
+def platform_keyboard(i18n: Translator, platform: Platform) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text=i18n("btn-download-app"), url=APP_LINKS[platform])
+    _menu_button(builder, i18n, "btn-back", MenuAction.CONNECT)
     builder.adjust(1)
     return builder.as_markup()

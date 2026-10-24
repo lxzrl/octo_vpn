@@ -25,6 +25,23 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://redis:6379/0"
 
+    # Панель Remnawave: адрес панели и API-токен (Настройки → API-токены).
+    remnawave_url: str = "https://panel.example.com"
+    remnawave_token: SecretStr = SecretStr("")
+    # Ключ Caddy, если панель закрыта Caddy с авторизацией по X-Api-Key.
+    remnawave_caddy_token: SecretStr | None = None
+    # Сквады, в которые добавляется пользователь. Пусто = все сквады панели.
+    remnawave_squads: Annotated[tuple[str, ...], NoDecode] = ()
+
+    trial_days: int = 3
+    # Канал, подписка на который нужна для пробного периода: @username или -100…
+    # Пусто = проверка выключена.
+    trial_channel: str | None = None
+    # Ссылка на канал для кнопки; для @username строится автоматически.
+    trial_channel_url: str | None = None
+
+    # Часовой пояс, в котором пользователям показываются даты.
+    display_timezone: str = "Europe/Moscow"
     default_language: Language = "ru"
     log_level: str = "INFO"
 
@@ -36,6 +53,26 @@ class Settings(BaseSettings):
         if isinstance(value, int):
             return frozenset({value})
         return value
+
+    @field_validator("remnawave_squads", mode="before")
+    @classmethod
+    def _split_squads(cls, value: object) -> object:
+        if isinstance(value, str):
+            return tuple(part.strip() for part in value.split(",") if part.strip())
+        return value
+
+    @field_validator("trial_channel", "trial_channel_url", mode="before")
+    @classmethod
+    def _empty_to_none(cls, value: object) -> object:
+        return value or None
+
+    @property
+    def channel_url(self) -> str | None:
+        if self.trial_channel_url:
+            return self.trial_channel_url
+        if self.trial_channel and self.trial_channel.startswith("@"):
+            return f"https://t.me/{self.trial_channel[1:]}"
+        return None
 
     @property
     def db_url(self) -> str:
