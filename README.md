@@ -24,7 +24,7 @@ Docker Compose. Зависимости ставятся через [uv](https://
 и любая рабочая VLESS-ссылка.
 
 ```bash
-git clone https://<токен GitHub>@github.com/lxzrl/octo_vpn.git /opt/octo
+git clone https://github.com/lxzrl/octo_vpn.git /opt/octo
 cd /opt/octo && sudo bash install.sh
 ```
 

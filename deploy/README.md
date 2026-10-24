@@ -38,12 +38,12 @@ Telegram ── бот ──► API панели (внутренняя сеть
 
 ## 1. Управляющий сервер: панель
 
-Репозиторий приватный, поэтому клонируйте его с
-[персональным токеном GitHub](https://github.com/settings/tokens) (права `Contents: read`):
+Если репозиторий приватный, вставьте в адрес [токен GitHub](https://github.com/settings/personal-access-tokens/new)
+с правом `Contents: Read-only`: `https://ТОКЕН@github.com/…`.
 
 ```bash
 apt update && apt install -y git
-git clone https://<токен>@github.com/lxzrl/octo_vpn.git /opt/octo
+git clone https://github.com/lxzrl/octo_vpn.git /opt/octo
 bash /opt/octo/deploy/panel/install.sh panel.ваш-домен.com
 ```
 
