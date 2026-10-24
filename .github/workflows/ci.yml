@@ -34,6 +34,16 @@ jobs:
         run: uv run ruff check . && uv run ruff format --check .
       - name: Mypy
         run: uv run mypy
+      - name: Shellcheck deploy scripts
+        # Ubuntu runner ships shellcheck preinstalled.
+        run: shellcheck deploy/*.sh deploy/*/*.sh
+      - name: Compose files are valid
+        run: |
+          cp .env.example .env
+          docker compose -f docker-compose.yml config -q
+          docker network create remnawave-network
+          docker compose -f docker-compose.yml -f deploy/bot/panel-network.yml config -q
+          PANEL_DOMAIN=panel.example.com docker compose -f deploy/panel/caddy-compose.yml config -q
       - name: Migrations are up to date
         run: uv run alembic upgrade head && uv run alembic check
       - name: Tests (SQLite)

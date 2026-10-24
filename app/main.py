@@ -7,6 +7,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.base import BaseStorage
 from aiogram.fsm.storage.redis import RedisStorage
+from aiogram.types import BotCommand
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.bot.broadcast import Broadcaster
@@ -51,6 +52,14 @@ def build_dispatcher(
     return dp
 
 
+async def set_commands(bot: Bot) -> None:
+    """Меню команд в Telegram. /admin не показываем: о нём знают только админы."""
+    await bot.set_my_commands([BotCommand(command="start", description="Главное меню")])
+    await bot.set_my_commands(
+        [BotCommand(command="start", description="Main menu")], language_code="en"
+    )
+
+
 async def run(settings: Settings) -> None:
     engine = create_engine(settings.db_url)
     bot = Bot(
@@ -79,6 +88,7 @@ async def run(settings: Settings) -> None:
         admins,
     )
     jobs = BackgroundJobs(bot, session_factory, panel, translators, settings, admins)
+    await set_commands(bot)
     jobs.start()
     try:
         await dp.start_polling(bot)

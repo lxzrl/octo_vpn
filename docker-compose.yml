@@ -1,8 +1,16 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 20m
+      max-file: "5"
+
 services:
   bot:
     build: .
     restart: unless-stopped
     env_file: .env
+    <<: *logging
     depends_on:
       postgres:
         condition: service_healthy
@@ -12,6 +20,7 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    <<: *logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -27,6 +36,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    <<: *logging
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
