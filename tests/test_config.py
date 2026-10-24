@@ -12,3 +12,7 @@ def test_db_url_escapes_password() -> None:
 
 def test_admin_ids_from_comma_separated_string() -> None:
     assert Settings(bot_token="1:x", admin_ids="1, 2,").admin_ids == {1, 2}
+
+
+def test_empty_proxy_is_none() -> None:
+    assert Settings(bot_token="1:x", telegram_proxy="").telegram_proxy is None

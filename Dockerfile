@@ -1,6 +1,7 @@
 FROM python:3.12-slim
 
-COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /usr/local/bin/uv
+# uv ставим из PyPI: ghcr.io с некоторых серверов (в том числе российских) недоступен.
+RUN pip install --no-cache-dir "uv>=0.11,<0.12"
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/opt/venv \

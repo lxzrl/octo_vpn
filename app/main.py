@@ -4,6 +4,7 @@ import logging
 import aiohttp
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.base import BaseStorage
 from aiogram.fsm.storage.redis import RedisStorage
@@ -19,6 +20,7 @@ from app.bot.notify import AdminNotifier
 from app.config import Settings, get_settings
 from app.db.session import create_engine, create_session_factory
 from app.i18n import TranslatorHub
+from app.vpn.demo import DemoPanel
 from app.vpn.panel import VpnPanel
 from app.vpn.remnawave import RemnawaveClient
 from app.worker import BackgroundJobs
@@ -60,22 +62,34 @@ async def set_commands(bot: Bot) -> None:
     )
 
 
-async def run(settings: Settings) -> None:
-    engine = create_engine(settings.db_url)
-    bot = Bot(
+def create_bot(settings: Settings) -> Bot:
+    # Прокси нужен, если сервер стоит там, где api.telegram.org заблокирован.
+    session = AiohttpSession(proxy=settings.telegram_proxy) if settings.telegram_proxy else None
+    return Bot(
         settings.bot_token.get_secret_value(),
+        session=session,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
-    http = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15))
-    panel = RemnawaveClient(
+
+
+def create_panel(settings: Settings, http: aiohttp.ClientSession) -> VpnPanel:
+    if settings.vpn_panel == "demo":
+        return DemoPanel(settings.demo_subscription_url)
+    caddy = settings.remnawave_caddy_token
+    return RemnawaveClient(
         http,
         settings.remnawave_url,
         settings.remnawave_token.get_secret_value(),
-        settings.remnawave_caddy_token.get_secret_value()
-        if settings.remnawave_caddy_token
-        else None,
+        caddy.get_secret_value() if caddy else None,
         settings.remnawave_squads,
     )
+
+
+async def run(settings: Settings) -> None:
+    engine = create_engine(settings.db_url)
+    bot = create_bot(settings)
+    http = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15))
+    panel = create_panel(settings, http)
     session_factory = create_session_factory(engine)
     translators = TranslatorHub(settings.default_language)
     admins = AdminNotifier(settings.admin_ids)

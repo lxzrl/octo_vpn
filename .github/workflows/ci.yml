@@ -36,11 +36,12 @@ jobs:
         run: uv run mypy
       - name: Shellcheck deploy scripts
         # Ubuntu runner ships shellcheck preinstalled.
-        run: shellcheck deploy/*.sh deploy/*/*.sh
+        run: shellcheck install.sh deploy/*.sh deploy/*/*.sh
       - name: Compose files are valid
         run: |
           cp .env.example .env
           docker compose -f docker-compose.yml config -q
+          docker compose -f docker-compose.yml -f deploy/quick/compose.yml config -q
           docker network create remnawave-network
           docker compose -f docker-compose.yml -f deploy/bot/panel-network.yml config -q
           PANEL_DOMAIN=panel.example.com docker compose -f deploy/panel/caddy-compose.yml config -q

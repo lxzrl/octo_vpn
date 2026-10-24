@@ -8,7 +8,6 @@ import asyncio
 import sys
 
 import aiohttp
-from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
 from redis.asyncio import Redis
 from sqlalchemy import func, select
@@ -16,6 +15,7 @@ from sqlalchemy import func, select
 from app.config import Settings, get_settings
 from app.db.models import User
 from app.db.session import create_engine, create_session_factory
+from app.main import create_bot, create_panel
 from app.services.options import load_options
 from app.vpn.panel import PanelError
 from app.vpn.remnawave import RemnawaveClient
@@ -28,7 +28,7 @@ def report(ok: bool, text: str) -> bool:
 
 async def check(settings: Settings) -> bool:
     results = []
-    bot = Bot(settings.bot_token.get_secret_value())
+    bot = create_bot(settings)
     engine = create_engine(settings.db_url)
     try:
         try:
@@ -36,6 +36,10 @@ async def check(settings: Settings) -> bool:
             results.append(report(True, f"Telegram: бот @{me.username}"))
         except TelegramAPIError as error:
             results.append(report(False, f"Telegram: {error}"))
+            me = None
+        except Exception as error:  # ошибки прокси (aiohttp_socks) — не TelegramAPIError
+            via = f" через {settings.telegram_proxy}" if settings.telegram_proxy else ""
+            results.append(report(False, f"Telegram: нет связи{via}: {error!r}"))
             me = None
         results.append(report(bool(settings.admin_ids), f"ADMIN_IDS: {len(settings.admin_ids)}"))
 
@@ -58,23 +62,22 @@ async def check(settings: Settings) -> bool:
         finally:
             await redis.aclose()
 
-        caddy = settings.remnawave_caddy_token
         url = settings.remnawave_url
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as http:
-            panel = RemnawaveClient(
-                http,
-                url,
-                settings.remnawave_token.get_secret_value(),
-                caddy.get_secret_value() if caddy else None,
-                settings.remnawave_squads,
-            )
-            try:
-                squads = await panel.squad_uuids()
-                # Несуществующий пользователь: проверяем, что токен принимается для users.
-                await panel.get_user_by_username("tg_0")
-                results.append(report(True, f"Панель {url}: сквадов {len(squads)}"))
-            except PanelError as error:
-                results.append(report(False, f"Панель {url}: {error}"))
+            panel = create_panel(settings, http)
+            if not isinstance(panel, RemnawaveClient):
+                print("➖ Тестовый режим без панели: всем выдаётся DEMO_SUBSCRIPTION_URL")
+                results.append(
+                    report(bool(settings.demo_subscription_url), "DEMO_SUBSCRIPTION_URL задан")
+                )
+            else:
+                try:
+                    squads = await panel.squad_uuids()
+                    # Несуществующий пользователь: проверяем, что токен принимается для users.
+                    await panel.get_user_by_username("tg_0")
+                    results.append(report(True, f"Панель {url}: сквадов {len(squads)}"))
+                except PanelError as error:
+                    results.append(report(False, f"Панель {url}: {error}"))
 
         channel = options.trial_channel if options else settings.trial_channel
         if channel and me is None:

@@ -10,6 +10,7 @@ from aiogram.methods import (
     SendMessage,
 )
 from aiogram.types import (
+    InlineKeyboardMarkup,
     Message,
     PreCheckoutQuery,
     SuccessfulPayment,
@@ -32,6 +33,7 @@ from app.db.models import Payment, PaymentStatus, Plan, PromoCode, PromoKind, Su
 from app.db.models import User as DbUser
 from app.i18n import TranslatorHub
 from app.main import build_dispatcher
+from app.vpn.demo import DemoPanel
 from tests.fakes import CHAT, TG_USER, FakePanel, FakeSession, callback, ids, message
 
 
@@ -402,3 +404,21 @@ async def test_referral_screen_and_reward_message(
     )
     reward = next(c for c in fake.calls if isinstance(c, SendMessage) and c.chat_id == 7)
     assert "60 ₽ added to your balance" in reward.text
+
+
+async def test_demo_mode_gives_vless_link(
+    bot: Bot, fake: FakeSession, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    link = "vless://3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f@203.0.113.7:443?security=reality"
+    settings = Settings(bot_token="42:TEST", trial_channel=None, vpn_panel="demo")
+    panel = DemoPanel(link)
+    dp = build_dispatcher(settings, session_factory, TranslatorHub("ru"), panel)
+    await registered(dp, bot)
+    await dp.feed_update(bot, menu(MenuAction.TRIAL))
+    assert "Пробный период активирован" in last_text(fake) and "203.0.113.7" in last_text(fake)
+
+    await dp.feed_update(bot, menu(MenuAction.SUBSCRIPTION))
+    sent = [c for c in fake.calls if isinstance(c, SendMessage | EditMessageText)][-1]
+    assert isinstance(sent.reply_markup, InlineKeyboardMarkup)
+    buttons = [b for row in sent.reply_markup.inline_keyboard for b in row]
+    assert buttons and all(b.url is None for b in buttons)

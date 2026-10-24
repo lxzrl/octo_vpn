@@ -26,6 +26,15 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://redis:6379/0"
 
+    # Прокси для запросов к Telegram, если с сервера api.telegram.org недоступен:
+    # socks5://host:port или http://host:port. Быстрая установка поднимает Xray по VLESS-ссылке.
+    telegram_proxy: str | None = None
+
+    # remnawave — настоящие подписки через панель; demo — тестовый режим без панели:
+    # всем выдаётся одна и та же ссылка DEMO_SUBSCRIPTION_URL, сроки ведёт только бот.
+    vpn_panel: Literal["remnawave", "demo"] = "remnawave"
+    demo_subscription_url: str = ""
+
     # Панель Remnawave: адрес панели и API-токен (Настройки → API-токены).
     remnawave_url: str = "https://panel.example.com"
     remnawave_token: SecretStr = SecretStr("")
@@ -73,7 +82,7 @@ class Settings(BaseSettings):
             return tuple(part.strip() for part in value.split(",") if part.strip())
         return value
 
-    @field_validator("trial_channel", "trial_channel_url", mode="before")
+    @field_validator("trial_channel", "trial_channel_url", "telegram_proxy", mode="before")
     @classmethod
     def _empty_to_none(cls, value: object) -> object:
         return value or None

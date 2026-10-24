@@ -89,7 +89,9 @@ def subscription_keyboard(
     builder = InlineKeyboardBuilder()
     if active:
         _menu_button(builder, i18n, "btn-connect", MenuAction.CONNECT)
-        builder.button(text=i18n("btn-subscription-page"), url=subscription_url)
+        # В тестовом режиме вместо страницы подписки может быть vless://, кнопкой его не открыть.
+        if subscription_url.startswith(("https://", "http://")):
+            builder.button(text=i18n("btn-subscription-page"), url=subscription_url)
     _menu_button(builder, i18n, "btn-extend", MenuAction.BUY)
     _menu_button(builder, i18n, "btn-back", MenuAction.MAIN)
     builder.adjust(1)

@@ -1,0 +1,19 @@
+# Быстрая установка (install.sh): Xray-клиент по VLESS-ссылке, через него бот ходит в Telegram.
+# Пути в этом файле считаются от первого compose-файла (корень репозитория).
+# Конфиг xray/config.json генерирует install.sh из ссылки (python -m app.vpn.vless).
+services:
+  xray:
+    image: teddysun/xray:latest
+    restart: unless-stopped
+    volumes:
+      - ./xray/config.json:/etc/xray/config.json:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
+
+  bot:
+    depends_on:
+      xray:
+        condition: service_started
