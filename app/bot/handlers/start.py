@@ -1,3 +1,5 @@
+import html
+
 from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.types import CallbackQuery, Message
@@ -11,7 +13,8 @@ from app.services.users import set_language
 
 
 def main_menu_text(i18n: Translator, user: User) -> str:
-    return i18n("main-menu", name=user.first_name)
+    # Режим разметки HTML: имя из Telegram может содержать < и &.
+    return i18n("main-menu", name=html.escape(user.first_name))
 
 
 def profile_text(i18n: Translator, user: User) -> str:

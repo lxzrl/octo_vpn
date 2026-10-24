@@ -52,21 +52,21 @@ class FakeSession(BaseSession):
 ids = count(1)
 
 
-def message(text: str) -> Update:
+def message(text: str, from_user: User = TG_USER) -> Update:
     return Update(
         update_id=next(ids),
         message=Message(
-            message_id=next(ids), date=datetime.now(UTC), chat=CHAT, from_user=TG_USER, text=text
+            message_id=next(ids), date=datetime.now(UTC), chat=CHAT, from_user=from_user, text=text
         ),
     )
 
 
-def callback(data: str) -> Update:
+def callback(data: str, from_user: User = TG_USER) -> Update:
     return Update(
         update_id=next(ids),
         callback_query=CallbackQuery(
             id=str(next(ids)),
-            from_user=TG_USER,
+            from_user=from_user,
             chat_instance="x",
             data=data,
             message=Message(message_id=1, date=datetime.now(UTC), chat=CHAT, text="old"),
@@ -154,3 +154,10 @@ async def test_unfinished_sections_answer_with_alert(
     await dp.feed_update(bot, callback(MenuCallback(action=MenuAction.BUY).pack()))
     answer = fake.calls[-1]
     assert isinstance(answer, AnswerCallbackQuery) and answer.show_alert
+
+
+async def test_name_with_html_chars_is_escaped(dp: Dispatcher, bot: Bot, fake: FakeSession) -> None:
+    user = User(id=101, is_bot=False, first_name="<Bob & Co>")
+    await dp.feed_update(bot, message("/start", user))
+    await dp.feed_update(bot, callback(LanguageCallback(code="en").pack(), user))
+    assert "&lt;Bob &amp; Co&gt;" in last_text(fake)
