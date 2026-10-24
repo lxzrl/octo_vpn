@@ -1,74 +1,40 @@
-from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from itertools import count
-from typing import Any
 
 import pytest
 from aiogram import Bot, Dispatcher
-from aiogram.client.session.base import BaseSession
 from aiogram.methods import (
     AnswerCallbackQuery,
+    AnswerPreCheckoutQuery,
     EditMessageText,
-    GetChatMember,
+    SendInvoice,
     SendMessage,
-    TelegramMethod,
 )
-from aiogram.methods.base import TelegramType
 from aiogram.types import (
     CallbackQuery,
-    Chat,
-    ChatMemberLeft,
-    ChatMemberMember,
     Message,
+    PreCheckoutQuery,
+    SuccessfulPayment,
     Update,
     User,
 )
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.bot.callbacks import LanguageCallback, MenuAction, MenuCallback, Platform, PlatformCallback
+from app.bot.callbacks import (
+    LanguageCallback,
+    MenuAction,
+    MenuCallback,
+    PayCallback,
+    PlanCallback,
+    Platform,
+    PlatformCallback,
+)
 from app.config import Settings
-from app.db.models import Subscription
+from app.db.models import Payment, PaymentStatus, Plan, PromoCode, PromoKind, Subscription
 from app.db.models import User as DbUser
 from app.i18n import TranslatorHub
 from app.main import build_dispatcher
-from tests.fakes import FakePanel
-
-CHAT = Chat(id=100, type="private")
-TG_USER = User(id=100, is_bot=False, first_name="Alice", language_code="ru")
-
-
-class FakeSession(BaseSession):
-    """Вместо Telegram API запоминает вызовы бота и возвращает правдоподобные ответы."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.calls: list[TelegramMethod[Any]] = []
-        self.channel_member = False
-
-    # Сигнатура задана BaseSession, поэтому timeout оставляем.
-    async def make_request(
-        self,
-        bot: Bot,
-        method: TelegramMethod[TelegramType],
-        timeout: int | None = None,  # noqa: ASYNC109
-    ) -> TelegramType:
-        self.calls.append(method)
-        if isinstance(method, SendMessage | EditMessageText):
-            return Message(  # type: ignore[return-value]
-                message_id=1, date=datetime.now(UTC), chat=CHAT, text=method.text
-            )
-        if isinstance(method, GetChatMember):
-            member = ChatMemberMember if self.channel_member else ChatMemberLeft
-            return member(user=TG_USER)  # type: ignore[return-value]
-        return True  # type: ignore[return-value]
-
-    async def stream_content(self, *args: Any, **kwargs: Any) -> AsyncGenerator[bytes, None]:
-        raise NotImplementedError
-        yield b""
-
-    async def close(self) -> None:
-        pass
-
+from tests.fakes import CHAT, TG_USER, FakePanel, FakeSession
 
 ids = count(1)
 
@@ -193,7 +159,7 @@ async def test_unfinished_sections_answer_with_alert(
     dp: Dispatcher, bot: Bot, fake: FakeSession
 ) -> None:
     await dp.feed_update(bot, message("/start"))
-    await dp.feed_update(bot, callback(MenuCallback(action=MenuAction.BUY).pack()))
+    await dp.feed_update(bot, callback(MenuCallback(action=MenuAction.SUPPORT).pack()))
     answer = fake.calls[-1]
     assert isinstance(answer, AnswerCallbackQuery) and answer.show_alert
 
@@ -293,3 +259,181 @@ async def test_expired_subscription_screen(
         await session.commit()
     await dp.feed_update(bot, menu(MenuAction.SUBSCRIPTION))
     assert "Подписка закончилась" in last_text(fake) and "01.01.2020" in last_text(fake)
+
+
+def sent_texts(fake: FakeSession) -> list[str]:
+    return [c.text for c in fake.calls if isinstance(c, SendMessage | EditMessageText)]
+
+
+async def add_plan(session_factory: async_sessionmaker[AsyncSession], price: int = 300) -> int:
+    async with session_factory() as session:
+        plan = Plan(months=1, days=30, price_rub=price)
+        session.add(plan)
+        await session.commit()
+        return plan.id
+
+
+async def test_buy_with_stars(
+    dp: Dispatcher,
+    bot: Bot,
+    fake: FakeSession,
+    panel: FakePanel,
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    plan_id = await add_plan(session_factory)
+    await registered(dp, bot)
+
+    await dp.feed_update(bot, menu(MenuAction.BUY))
+    assert "Выберите тариф" in last_text(fake)
+    await dp.feed_update(bot, callback(PlanCallback(plan_id=plan_id).pack()))
+    assert "300 ₽ (200 ⭐)" in last_text(fake)
+
+    await dp.feed_update(bot, callback(PayCallback(plan_id=plan_id).pack()))
+    invoice = next(c for c in fake.calls if isinstance(c, SendInvoice))
+    assert invoice.currency == "XTR" and invoice.prices[0].amount == 200
+
+    await dp.feed_update(
+        bot,
+        Update(
+            update_id=next(ids),
+            pre_checkout_query=PreCheckoutQuery(
+                id="q1",
+                from_user=TG_USER,
+                currency="XTR",
+                total_amount=200,
+                invoice_payload=invoice.payload,
+            ),
+        ),
+    )
+    answer = fake.calls[-1]
+    assert isinstance(answer, AnswerPreCheckoutQuery) and answer.ok
+
+    paid = Update(
+        update_id=next(ids),
+        message=Message(
+            message_id=next(ids),
+            date=datetime.now(UTC),
+            chat=CHAT,
+            from_user=TG_USER,
+            successful_payment=SuccessfulPayment(
+                currency="XTR",
+                total_amount=200,
+                invoice_payload=invoice.payload,
+                telegram_payment_charge_id="tg-charge-1",
+                provider_payment_charge_id="",
+            ),
+        ),
+    )
+    await dp.feed_update(bot, paid)
+    assert "Оплата прошла" in last_text(fake)
+    assert len(panel.users) == 1
+
+    # Повторная доставка того же платежа не продлевает подписку второй раз.
+    before = len(fake.calls)
+    await dp.feed_update(bot, paid)
+    assert len(fake.calls) == before
+
+    async with session_factory() as session:
+        payment = await session.get(Payment, 1)
+        assert payment is not None and payment.status == PaymentStatus.PAID
+        assert payment.fulfilled_at is not None
+
+
+async def test_pre_checkout_rejects_unknown_invoice(
+    dp: Dispatcher, bot: Bot, fake: FakeSession
+) -> None:
+    await registered(dp, bot)
+    await dp.feed_update(
+        bot,
+        Update(
+            update_id=next(ids),
+            pre_checkout_query=PreCheckoutQuery(
+                id="q1",
+                from_user=TG_USER,
+                currency="XTR",
+                total_amount=1,
+                invoice_payload="pay:999",
+            ),
+        ),
+    )
+    answer = fake.calls[-1]
+    assert isinstance(answer, AnswerPreCheckoutQuery) and not answer.ok
+
+
+async def test_promo_code_and_balance_purchase(
+    dp: Dispatcher,
+    bot: Bot,
+    fake: FakeSession,
+    panel: FakePanel,
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    plan_id = await add_plan(session_factory, price=100)
+    async with session_factory() as session:
+        session.add(PromoCode(code="GIFT", kind=PromoKind.BALANCE, value=10000))
+        await session.commit()
+    await registered(dp, bot)
+
+    await dp.feed_update(bot, menu(MenuAction.PROMO))
+    await dp.feed_update(bot, message("nope"))
+    assert "Такого промокода нет" in last_text(fake)
+    await dp.feed_update(bot, message("gift"))
+    assert "начислено 100 ₽" in last_text(fake)
+
+    await dp.feed_update(bot, callback(PlanCallback(plan_id=plan_id).pack()))
+    assert "Полностью оплачивается с баланса" in last_text(fake)
+    await dp.feed_update(bot, callback(PayCallback(plan_id=plan_id).pack()))
+    assert "Оплата прошла" in last_text(fake)
+    assert not any(isinstance(c, SendInvoice) for c in fake.calls)
+    assert len(panel.users) == 1
+
+
+async def test_start_command_leaves_promo_input(
+    dp: Dispatcher, bot: Bot, fake: FakeSession
+) -> None:
+    await registered(dp, bot)
+    await dp.feed_update(bot, menu(MenuAction.PROMO))
+    await dp.feed_update(bot, message("/start"))
+    assert "Привет" in last_text(fake)
+    await dp.feed_update(bot, message("hello"))
+    assert "Такого промокода нет" not in last_text(fake)
+
+
+async def test_referral_screen_and_reward_message(
+    dp: Dispatcher,
+    bot: Bot,
+    fake: FakeSession,
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    async with session_factory() as session:
+        session.add(DbUser(id=7, first_name="Ref", language="en"))
+        await session.commit()
+    plan_id = await add_plan(session_factory)
+
+    await dp.feed_update(bot, message("/start ref_7"))
+    await dp.feed_update(bot, callback(LanguageCallback(code="ru").pack()))
+    await dp.feed_update(bot, menu(MenuAction.REFERRALS))
+    assert "https://t.me/octo_bot?start=ref_100" in last_text(fake)
+
+    await dp.feed_update(bot, callback(PayCallback(plan_id=plan_id).pack()))
+    invoice = next(c for c in fake.calls if isinstance(c, SendInvoice))
+    await dp.feed_update(
+        bot,
+        Update(
+            update_id=next(ids),
+            message=Message(
+                message_id=next(ids),
+                date=datetime.now(UTC),
+                chat=CHAT,
+                from_user=TG_USER,
+                successful_payment=SuccessfulPayment(
+                    currency="XTR",
+                    total_amount=invoice.prices[0].amount,
+                    invoice_payload=invoice.payload,
+                    telegram_payment_charge_id="tg-charge-2",
+                    provider_payment_charge_id="",
+                ),
+            ),
+        ),
+    )
+    reward = next(c for c in fake.calls if isinstance(c, SendMessage) and c.chat_id == 7)
+    assert "60 ₽ added to your balance" in reward.text

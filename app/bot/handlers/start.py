@@ -2,6 +2,7 @@ import html
 
 from aiogram import F, Router
 from aiogram.filters import CommandStart
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from app.bot.callbacks import LanguageCallback, MenuAction, MenuCallback
@@ -9,6 +10,7 @@ from app.bot.keyboards import language_keyboard, main_menu_keyboard, profile_key
 from app.bot.ui import show
 from app.db.models import User
 from app.i18n import Translator, TranslatorHub
+from app.services.money import rub
 from app.services.users import set_language
 
 
@@ -23,10 +25,12 @@ def profile_text(i18n: Translator, user: User) -> str:
         id=str(user.id),
         registered=user.created_at.strftime("%d.%m.%Y"),
         language=i18n("language-name"),
+        balance=rub(user.balance_kop),
     )
 
 
-async def cmd_start(message: Message, user: User, i18n: Translator) -> None:
+async def cmd_start(message: Message, user: User, i18n: Translator, state: FSMContext) -> None:
+    await state.clear()
     if user.language is None:
         await message.answer(i18n("choose-language"), reply_markup=language_keyboard())
         return
@@ -72,6 +76,6 @@ def create_router() -> Router:
     router.callback_query.register(
         on_change_language, MenuCallback.filter(F.action == MenuAction.LANGUAGE)
     )
-    # Разделы подписки, оплаты, рефералки и поддержки появятся на следующих этапах.
+    # Поддержка появится на этапе 4.
     router.callback_query.register(on_not_ready, MenuCallback.filter())
     return router

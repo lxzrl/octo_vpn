@@ -1,8 +1,18 @@
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.bot.callbacks import LanguageCallback, MenuAction, MenuCallback, Platform, PlatformCallback
+from app.bot.callbacks import (
+    LanguageCallback,
+    MenuAction,
+    MenuCallback,
+    PayCallback,
+    PlanCallback,
+    Platform,
+    PlatformCallback,
+)
+from app.db.models import Plan
 from app.i18n import Translator
+from app.services.money import rub
 
 LANGUAGE_BUTTONS = (("ru", "🇷🇺 Русский"), ("en", "🇬🇧 English"))
 
@@ -108,5 +118,58 @@ def platform_keyboard(i18n: Translator, platform: Platform) -> InlineKeyboardMar
     builder = InlineKeyboardBuilder()
     builder.button(text=i18n("btn-download-app"), url=APP_LINKS[platform])
     _menu_button(builder, i18n, "btn-back", MenuAction.CONNECT)
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def plans_keyboard(i18n: Translator, plans: list[Plan]) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for plan in plans:
+        assert plan.price_rub is not None
+        builder.button(
+            text=i18n(
+                "btn-plan",
+                plan=i18n("plan-name", months=plan.months),
+                price=rub(plan.price_rub * 100),
+            ),
+            callback_data=PlanCallback(plan_id=plan.id),
+        )
+    _menu_button(builder, i18n, "btn-promo", MenuAction.PROMO)
+    _menu_button(builder, i18n, "btn-back", MenuAction.MAIN)
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def checkout_keyboard(i18n: Translator, plan_id: int, stars: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    text = i18n("btn-pay-stars", stars=stars) if stars else i18n("btn-pay-balance")
+    builder.button(text=text, callback_data=PayCallback(plan_id=plan_id))
+    _menu_button(builder, i18n, "btn-back", MenuAction.BUY)
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def to_subscription_keyboard(i18n: Translator) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    _menu_button(builder, i18n, "btn-subscription", MenuAction.SUBSCRIPTION)
+    return builder.as_markup()
+
+
+def extend_keyboard(i18n: Translator) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    _menu_button(builder, i18n, "btn-extend", MenuAction.BUY)
+    return builder.as_markup()
+
+
+def cancel_keyboard(i18n: Translator, back_to: MenuAction) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    _menu_button(builder, i18n, "btn-cancel", back_to)
+    return builder.as_markup()
+
+
+def referral_keyboard(i18n: Translator, share_url: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text=i18n("btn-share"), url=share_url)
+    _menu_button(builder, i18n, "btn-back", MenuAction.MAIN)
     builder.adjust(1)
     return builder.as_markup()

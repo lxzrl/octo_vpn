@@ -17,6 +17,11 @@ def _start_payload(event: TelegramObject) -> str | None:
     return None
 
 
+def _is_successful_payment(event: TelegramObject) -> bool:
+    # Звёзды уже списаны: такой апдейт обрабатываем даже у забаненного.
+    return isinstance(event, Update) and bool(event.message and event.message.successful_payment)
+
+
 class UserMiddleware(BaseMiddleware):
     """Находит или регистрирует пользователя, подставляет язык. Забаненных молча игнорирует."""
 
@@ -38,7 +43,7 @@ class UserMiddleware(BaseMiddleware):
             TelegramProfile(tg_user.id, tg_user.username, tg_user.first_name),
             referrer_id=parse_referrer(_start_payload(event)),
         )
-        if user.is_banned:
+        if user.is_banned and not _is_successful_payment(event):
             return None
 
         data["user"] = user

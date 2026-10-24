@@ -21,13 +21,12 @@ from app.config import Settings
 from app.db.models import Subscription, User
 from app.i18n import Translator
 from app.services.channel import ChannelCheckError, is_subscribed
+from app.services.clock import as_utc, utcnow
 from app.services.subscriptions import (
     TrialStatus,
     activate_trial,
-    as_utc,
     get_subscription,
     trial_status,
-    utcnow,
 )
 from app.vpn.panel import PanelError, VpnPanel
 

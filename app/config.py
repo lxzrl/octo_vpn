@@ -1,3 +1,4 @@
+from decimal import Decimal
 from functools import lru_cache
 from typing import Annotated, Literal
 
@@ -39,6 +40,16 @@ class Settings(BaseSettings):
     trial_channel: str | None = None
     # Ссылка на канал для кнопки; для @username строится автоматически.
     trial_channel_url: str | None = None
+
+    # Сколько рублей стоит одна звезда Telegram: цена в Stars = цена в рублях / курс,
+    # с округлением вверх.
+    stars_rub_rate: Decimal = Decimal("1.5")
+    # Неоплаченный счёт отменяется через столько минут, зарезервированный баланс возвращается.
+    payment_ttl_minutes: int = 60
+
+    # Реферальные начисления: процент от реально оплаченной суммы покупки друга.
+    referral_first_percent: int = 20
+    referral_next_percent: int = 10
 
     # Часовой пояс, в котором пользователям показываются даты.
     display_timezone: str = "Europe/Moscow"

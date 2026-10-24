@@ -22,6 +22,7 @@ profile =
     ID: <code>{ $id }</code>
     Member since: { $registered }
     Language: { $language }
+    Balance: { $balance }
 
 coming-soon = This section is coming soon
 
@@ -113,3 +114,71 @@ connect-macos =
 
     1. Install Happ from the App Store.
     { connect-steps }
+
+btn-promo = 🎟 Enter promo code
+btn-plan = { $plan } — { $price }
+btn-pay-stars = ⭐ Pay { $stars } Stars
+btn-pay-balance = ✅ Pay from balance
+btn-cancel = ✖️ Cancel
+btn-share = 📤 Share the link
+
+plan-name = { $months ->
+    [one] { $months } month
+   *[other] { $months } months
+}
+
+buy-title =
+    💳 <b>Choose a plan</b>
+
+    Every plan: no traffic or device limits, all locations.
+buy-no-plans =
+    💳 <b>Buy a subscription</b>
+
+    Plans are coming soon.
+buy-discount-pending = 🎟 Your { $percent }% promo discount will apply to your next purchase.
+buy-balance = 💰 You have { $balance } on your balance: it will be used at checkout.
+plan-unavailable = This plan is not available right now
+
+checkout-plan = 📦 <b>Plan: { $plan }</b>
+checkout-price = Price: { $price }
+checkout-discount = { $percent }% discount: −{ $amount }
+checkout-balance = From balance: −{ $amount }
+checkout-total-stars = <b>To pay: { $amount } ({ $stars } ⭐)</b>
+checkout-total-balance = <b>Fully paid from your balance.</b>
+
+invoice-title = Octo VPN — { $plan }
+invoice-description = { $plan } subscription: no traffic or device limits, all locations.
+invoice-outdated = This invoice is outdated. Open the plan in the bot and pay again.
+
+payment-success = ✅ Payment received! Your subscription is active until { $date }.
+payment-delayed = ✅ Payment received. Your subscription will be activated within a few minutes, we will message you.
+
+referral =
+    👥 <b>Invite friends</b>
+
+    Your link:
+    <code>{ $link }</code>
+
+    You get { $first }% of a friend's first purchase and { $next }% of every next one on your balance. The balance can pay for your subscription.
+
+    Invited: { $invited }
+    Earned: { $earned }
+    Balance: { $balance }
+referral-share-text = I use Octo VPN: fast, no limits. Try it for free!
+referral-reward = 🎉 Your friend paid for a subscription. { $amount } added to your balance.
+
+promo-enter = 🎟 Send the promo code as a message.
+promo-error-not-found = There is no such promo code. Check the spelling and try again.
+promo-error-expired = This promo code has expired.
+promo-error-exhausted = This promo code is no longer valid: it has run out of uses.
+promo-error-already-used = You have already used this promo code.
+promo-error-discount-pending = You already have an unused discount. Use it on a purchase first.
+promo-discount = 🎟 Promo code accepted: { $percent }% off your next purchase.
+promo-balance = 🎟 Promo code accepted: { $amount } added to your balance.
+promo-days = 🎟 Promo code accepted: { days } added to your subscription.
+
+reminder-5d = ⏳ Your subscription ends in 5 days, on { $date }. Extend it in advance to stay connected.
+reminder-3d = ⏳ Your subscription ends in 3 days, on { $date }.
+reminder-1d = ⏳ Your subscription ends tomorrow, { $date }.
+reminder-1h = ⏰ Your subscription ends in an hour. Extend it now so the VPN keeps working.
+reminder-expired = ⛔ Your subscription has ended. Extend it to get access back: the link in your app stays the same.

@@ -9,7 +9,7 @@ from aiogram.fsm.storage.base import BaseStorage
 from aiogram.fsm.storage.redis import RedisStorage
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.bot.handlers import start, subscription
+from app.bot.handlers import buy, referral, start, subscription
 from app.bot.middlewares.db import DbSessionMiddleware
 from app.bot.middlewares.user import UserMiddleware
 from app.config import Settings, get_settings
@@ -17,6 +17,7 @@ from app.db.session import create_engine, create_session_factory
 from app.i18n import TranslatorHub
 from app.vpn.panel import VpnPanel
 from app.vpn.remnawave import RemnawaveClient
+from app.worker import BackgroundJobs
 
 
 def build_dispatcher(
@@ -33,6 +34,8 @@ def build_dispatcher(
     dp.update.outer_middleware(DbSessionMiddleware(session_factory))
     dp.update.outer_middleware(UserMiddleware(translators))
     dp.include_router(subscription.create_router())
+    dp.include_router(buy.create_router())
+    dp.include_router(referral.create_router())
     # Роутер start последним: в нём заглушка для ещё не готовых разделов меню.
     dp.include_router(start.create_router())
     return dp
@@ -54,16 +57,17 @@ async def run(settings: Settings) -> None:
         else None,
         settings.remnawave_squads,
     )
+    session_factory = create_session_factory(engine)
+    translators = TranslatorHub(settings.default_language)
     dp = build_dispatcher(
-        settings,
-        create_session_factory(engine),
-        TranslatorHub(settings.default_language),
-        panel,
-        RedisStorage.from_url(settings.redis_url),
+        settings, session_factory, translators, panel, RedisStorage.from_url(settings.redis_url)
     )
+    jobs = BackgroundJobs(bot, session_factory, panel, translators, settings)
+    jobs.start()
     try:
         await dp.start_polling(bot)
     finally:
+        await jobs.stop()
         await http.close()
         await bot.session.close()
         await engine.dispose()

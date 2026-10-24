@@ -1,20 +1,13 @@
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from enum import StrEnum
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Plan, Subscription, User
+from app.services.clock import as_utc, utcnow
+from app.services.reminders import bits_already_passed
 from app.vpn.panel import PanelUser, VpnPanel
-
-
-def utcnow() -> datetime:
-    return datetime.now(UTC)
-
-
-def as_utc(moment: datetime) -> datetime:
-    """SQLite отдаёт даты без часового пояса; в базе всё хранится в UTC."""
-    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
 def panel_username(user_id: int) -> str:
@@ -67,6 +60,7 @@ async def extend_subscription(
     subscription.subscription_url = panel_user.subscription_url
     subscription.expires_at = expires_at
     subscription.is_trial = is_trial
+    subscription.reminders_sent = bits_already_passed(expires_at - now)
     await session.flush()
     return subscription
 

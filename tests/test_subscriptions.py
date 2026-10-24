@@ -4,11 +4,11 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Plan
+from app.services.clock import as_utc
 from app.services.subscriptions import (
     TrialStatus,
     activate_trial,
     active_plans,
-    as_utc,
     extend_subscription,
     get_subscription,
     trial_status,

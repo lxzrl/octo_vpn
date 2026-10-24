@@ -13,6 +13,7 @@ class MenuAction(StrEnum):
     LANGUAGE = "lang"
     TRIAL = "trial"
     CONNECT = "connect"
+    PROMO = "promo"
 
 
 class MenuCallback(CallbackData, prefix="menu"):
@@ -32,3 +33,11 @@ class Platform(StrEnum):
 
 class PlatformCallback(CallbackData, prefix="platform"):
     platform: Platform
+
+
+class PlanCallback(CallbackData, prefix="plan"):
+    plan_id: int
+
+
+class PayCallback(CallbackData, prefix="pay"):
+    plan_id: int

@@ -22,6 +22,7 @@ profile =
     ID: <code>{ $id }</code>
     С нами с: { $registered }
     Язык: { $language }
+    Баланс: { $balance }
 
 coming-soon = Этот раздел скоро появится
 
@@ -114,3 +115,72 @@ connect-macos =
 
     1. Установите Happ из App Store.
     { connect-steps }
+
+btn-promo = 🎟 Ввести промокод
+btn-plan = { $plan } — { $price }
+btn-pay-stars = ⭐ Оплатить { $stars } Stars
+btn-pay-balance = ✅ Оплатить с баланса
+btn-cancel = ✖️ Отмена
+btn-share = 📤 Поделиться ссылкой
+
+plan-name = { $months ->
+    [one] { $months } месяц
+    [few] { $months } месяца
+   *[many] { $months } месяцев
+}
+
+buy-title =
+    💳 <b>Выберите тариф</b>
+
+    Во всех тарифах: без лимита трафика и устройств, все локации.
+buy-no-plans =
+    💳 <b>Покупка подписки</b>
+
+    Тарифы скоро появятся.
+buy-discount-pending = 🎟 Скидка { $percent }% по промокоду применится к следующей покупке.
+buy-balance = 💰 На балансе { $balance }: он спишется при оплате.
+plan-unavailable = Этот тариф сейчас недоступен
+
+checkout-plan = 📦 <b>Тариф: { $plan }</b>
+checkout-price = Цена: { $price }
+checkout-discount = Скидка { $percent }%: −{ $amount }
+checkout-balance = С баланса: −{ $amount }
+checkout-total-stars = <b>К оплате: { $amount } ({ $stars } ⭐)</b>
+checkout-total-balance = <b>Полностью оплачивается с баланса.</b>
+
+invoice-title = Octo VPN — { $plan }
+invoice-description = Подписка на { $plan }: без лимита трафика и устройств, все локации.
+invoice-outdated = Счёт устарел. Откройте тариф в боте и оплатите заново.
+
+payment-success = ✅ Оплата прошла! Подписка активна до { $date }.
+payment-delayed = ✅ Оплата получена. Подписка активируется в течение нескольких минут, мы пришлём сообщение.
+
+referral =
+    👥 <b>Приглашайте друзей</b>
+
+    Ваша ссылка:
+    <code>{ $link }</code>
+
+    С первой покупки друга вы получите { $first }% на баланс, со всех следующих — { $next }%. Балансом можно оплатить подписку.
+
+    Приглашено: { $invited }
+    Заработано: { $earned }
+    Баланс: { $balance }
+referral-share-text = Пользуюсь Octo VPN: быстрый, без лимитов. Попробуй бесплатно!
+referral-reward = 🎉 Ваш друг оплатил подписку. На баланс начислено { $amount }.
+
+promo-enter = 🎟 Отправьте промокод сообщением.
+promo-error-not-found = Такого промокода нет. Проверьте написание и отправьте ещё раз.
+promo-error-expired = Срок действия промокода истёк.
+promo-error-exhausted = Этот промокод больше не действует: активации закончились.
+promo-error-already-used = Вы уже использовали этот промокод.
+promo-error-discount-pending = У вас уже есть неиспользованная скидка. Сначала оплатите подписку с ней.
+promo-discount = 🎟 Промокод принят: скидка { $percent }% на следующую покупку.
+promo-balance = 🎟 Промокод принят: на баланс начислено { $amount }.
+promo-days = 🎟 Промокод принят: к подписке добавлено { days }.
+
+reminder-5d = ⏳ Подписка закончится через 5 дней, { $date }. Продлите заранее, чтобы не остаться без VPN.
+reminder-3d = ⏳ Подписка закончится через 3 дня, { $date }.
+reminder-1d = ⏳ Подписка закончится завтра, { $date }.
+reminder-1h = ⏰ Подписка закончится через час. Продлите сейчас, чтобы VPN не отключился.
+reminder-expired = ⛔ Подписка закончилась. Продлите её, и доступ вернётся: ссылка в приложении останется прежней.
