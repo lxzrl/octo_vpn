@@ -35,22 +35,38 @@ install_docker() {
     if command -v docker >/dev/null && docker compose version >/dev/null 2>&1; then
         return
     fi
-    echo "Ставлю Docker…"
+    echo "Ставлю Docker (1–3 минуты)…"
     if command -v apt-get >/dev/null; then
-        apt-get update -qq
+        # Без этого apt может молча ждать ответа в окне «перезапустить службы?» (needrestart).
+        export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a NEEDRESTART_SUSPEND=1
+        # На свежем сервере apt часто занят автообновлениями: ждём до 10 минут, а не падаем.
+        local apt=(apt-get -y -o DPkg::Lock::Timeout=600 -o Dpkg::Options::=--force-confdef
+            -o Dpkg::Options::=--force-confold)
+        "${apt[@]}" update || true
         # В репозиториях Ubuntu есть свой Docker: download.docker.com из России открывается не всегда.
-        apt-get install -y -qq docker.io docker-compose-v2 >/dev/null || true
+        "${apt[@]}" install docker.io || true
+        "${apt[@]}" install docker-compose-v2 || "${apt[@]}" install docker-compose-plugin || true
+    fi
+    if ! command -v docker >/dev/null; then
+        echo "Docker из репозитория не встал, пробую get.docker.com…"
+        curl -fsSL --max-time 60 https://get.docker.com -o /tmp/get-docker.sh
+        sh /tmp/get-docker.sh
     fi
     if ! docker compose version >/dev/null 2>&1; then
-        curl -fsSL https://get.docker.com | sh
+        echo "Ставлю docker compose с GitHub…"
+        mkdir -p /usr/local/lib/docker/cli-plugins
+        curl -fL --max-time 300 -o /usr/local/lib/docker/cli-plugins/docker-compose \
+            "https://github.com/docker/compose/releases/download/v2.39.4/docker-compose-linux-$(uname -m)"
+        chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
     fi
     # Docker Hub из России часто отвечает ошибкой, зеркало Google отдаёт те же образы.
     if [ ! -f /etc/docker/daemon.json ]; then
         mkdir -p /etc/docker
         echo '{"registry-mirrors": ["https://mirror.gcr.io"]}' > /etc/docker/daemon.json
-        systemctl restart docker
     fi
-    systemctl enable --now docker >/dev/null 2>&1 || true
+    systemctl enable docker >/dev/null 2>&1 || true
+    systemctl restart docker
+    docker compose version
 }
 
 configure() {
