@@ -31,6 +31,25 @@ ask() {
     done
 }
 
+add_swap() {
+    # На сервере с 1–2 ГБ памяти сборка образа и apt могут съесть всю RAM, и сервер зависает.
+    local mem_mb
+    mem_mb="$(awk '/MemTotal/ {print int($2 / 1024)}' /proc/meminfo)"
+    if [ "$mem_mb" -ge 3000 ] || [ -n "$(swapon --show --noheadings 2>/dev/null)" ]; then
+        return
+    fi
+    echo "Памяти ${mem_mb} МБ, добавляю файл подкачки 2 ГБ…"
+    if fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none; then
+        chmod 600 /swapfile
+        if ! { mkswap /swapfile >/dev/null && swapon /swapfile; }; then
+            echo "Подкачку включить не вышло, продолжаю без неё"
+            rm -f /swapfile
+            return
+        fi
+        grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    fi
+}
+
 install_docker() {
     if command -v docker >/dev/null && docker compose version >/dev/null 2>&1; then
         return
@@ -113,6 +132,7 @@ rollback() {
     fi
 }
 
+add_swap
 install_docker
 
 rm -f .env.bak
