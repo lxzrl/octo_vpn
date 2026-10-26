@@ -5,7 +5,7 @@ Set-Location $PSScriptRoot
 
 function Ask($prompt, $pattern, $hint) {
     while ($true) {
-        $answer = (Read-Host $prompt).Trim()
+        $answer = (Read-Host $prompt) -replace '\s', ''
         if ($answer -match $pattern) { return $answer }
         Write-Host "  $hint" -ForegroundColor Yellow
     }
@@ -29,7 +29,7 @@ if ($configure) {
     $token = Ask "Токен бота от @BotFather" '^[0-9]+:[A-Za-z0-9_-]{30,}$' "Не похоже на токен. Он выглядит так: 123456789:AAH..."
     Write-Host ""
     Write-Host "2. Ваш Telegram ID (узнать: @userinfobot), вы будете админом бота"
-    $adminId = Ask "Ваш Telegram ID" '^[0-9]{5,15}$' "Нужно число, например 123456789"
+    $adminId = Ask "Ваш Telegram ID (несколько админов - через запятую)" '^[0-9]{5,15}(,[0-9]{5,15})*$' "Нужно число, например 123456789, или несколько через запятую"
     Write-Host ""
     Write-Host "3. VLESS-ссылка: её бот будет выдавать пользователям как ключ"
     $vless = Ask "VLESS-ссылка" "^vless://[^']+$" "Ссылка должна начинаться с vless://"
