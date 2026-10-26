@@ -134,7 +134,7 @@ bash deploy/bot/install.sh
 
 ```
 ✅ Telegram: бот @octo_vpn_bot
-✅ ADMIN_IDS: 1
+✅ ADMIN_IDS: 123456789
 ✅ База: пользователей 0
 ✅ Redis
 ✅ Панель http://remnawave:3000: сквадов 1

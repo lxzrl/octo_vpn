@@ -5,6 +5,7 @@
 """
 
 import asyncio
+import os
 import sys
 
 import aiohttp
@@ -43,7 +44,11 @@ async def check(settings: Settings) -> bool:
             via = f" через {settings.telegram_proxy}" if settings.telegram_proxy else ""
             results.append(report(False, f"Telegram: нет связи{via}: {error!r}"))
             me = None
-        results.append(report(bool(settings.admin_ids), f"ADMIN_IDS: {len(settings.admin_ids)}"))
+        admin_ids = ", ".join(map(str, sorted(settings.admin_ids))) or "не заданы"
+        results.append(report(bool(settings.admin_ids), f"ADMIN_IDS: {admin_ids}"))
+        if "ADMIN_IDS" in os.environ:
+            # Переменная окружения важнее .env — частая причина «поменял файл, а не работает».
+            print("➖ ADMIN_IDS задан в переменных окружения, строка из .env не действует")
 
         session_factory = create_session_factory(engine)
         options = None
