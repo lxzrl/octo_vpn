@@ -1,7 +1,7 @@
 import html
 
 from aiogram import F, Router
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 
@@ -74,9 +74,15 @@ async def on_change_language(callback: CallbackQuery, i18n: Translator) -> None:
     await show(callback, i18n("choose-language"), language_keyboard())
 
 
+async def cmd_admin_denied(message: Message, user: User, i18n: Translator) -> None:
+    # Сюда /admin доходит, только если IsAdmin не пропустил: подсказываем ID для ADMIN_IDS.
+    await message.answer(i18n("admin-denied", id=str(user.id)))
+
+
 def create_router() -> Router:
     router = Router(name="start")
     router.message.register(cmd_start, CommandStart())
+    router.message.register(cmd_admin_denied, Command("admin"))
     router.callback_query.register(on_language, LanguageCallback.filter())
     router.callback_query.register(on_main_menu, MenuCallback.filter(F.action == MenuAction.MAIN))
     router.callback_query.register(on_profile, MenuCallback.filter(F.action == MenuAction.PROFILE))

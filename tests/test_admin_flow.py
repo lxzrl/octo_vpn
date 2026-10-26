@@ -109,7 +109,10 @@ async def test_admin_menu_only_for_admins(dp: Dispatcher, bot: Bot, fake: FakeSe
     assert "🛠 Админка" not in buttons(fake)
     fake.calls.clear()
     await dp.feed_update(bot, message("/admin", BOB))
-    assert not any("Админка" in text for text in sent_to(fake, BOB.id))
+    # Вместо админки — подсказка с ID для ADMIN_IDS.
+    assert sent_to(fake, BOB.id) == [
+        "Админка доступна только тем, чей ID указан в ADMIN_IDS. Ваш Telegram ID: <code>200</code>"
+    ]
     await dp.feed_update(bot, callback(adm(AdminAction.STATS), BOB))
     assert "Статистика" not in last_screen(fake)
 
@@ -366,3 +369,14 @@ async def test_admins_are_notified_about_payments(
     await dp.feed_update(bot, callback(PayCallback(plan_id=1).pack(), BOB))
     notice = last(fake)
     assert "Оплата #1" in notice and "Bob" in notice and "С баланса: 100 ₽" in notice
+
+
+async def test_second_admin_from_comma_separated_ids(
+    session_factory: async_sessionmaker[AsyncSession], bot: Bot, fake: FakeSession, panel: FakePanel
+) -> None:
+    settings = Settings(bot_token="42:TEST", admin_ids=f"{ADMIN.id}, {BOB.id}", trial_channel=None)
+    dp = build_dispatcher(settings, session_factory, TranslatorHub("ru"), panel)
+    await register(dp, bot, BOB)
+    assert "🛠 Админка" in buttons(fake)
+    await dp.feed_update(bot, message("/admin", BOB))
+    assert "Админка" in sent_to(fake, BOB.id)[-1]

@@ -105,6 +105,9 @@ async def run(settings: Settings) -> None:
         RedisStorage.from_url(settings.redis_url) if settings.redis_url else MemoryStorage(),
         admins,
     )
+    logging.getLogger(__name__).info(
+        "Админы (ADMIN_IDS): %s", ", ".join(map(str, sorted(settings.admin_ids))) or "нет"
+    )
     jobs = BackgroundJobs(bot, session_factory, panel, translators, settings, admins)
     await set_commands(bot)
     jobs.start()

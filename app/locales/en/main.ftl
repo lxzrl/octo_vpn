@@ -212,3 +212,4 @@ support-reply =
 support-photo = 🖼
 support-author-you = 👤 You
 support-author-support = 🛟 Support
+admin-denied = The admin menu is only for IDs listed in ADMIN_IDS. Your Telegram ID: <code>{ $id }</code>

@@ -214,3 +214,4 @@ support-reply =
 support-photo = 🖼
 support-author-you = 👤 Вы
 support-author-support = 🛟 Поддержка
+admin-denied = Админка доступна только тем, чей ID указан в ADMIN_IDS. Ваш Telegram ID: <code>{ $id }</code>
