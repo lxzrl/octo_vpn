@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import logging
 
 import aiohttp
@@ -122,7 +123,9 @@ def main() -> None:
         level=settings.log_level,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    asyncio.run(run(settings))
+    # Ctrl+C — обычная остановка, без трассировки в консоли.
+    with contextlib.suppress(KeyboardInterrupt):
+        asyncio.run(run(settings))
 
 
 if __name__ == "__main__":
