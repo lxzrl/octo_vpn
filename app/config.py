@@ -24,7 +24,8 @@ class Settings(BaseSettings):
     # Полный URL перекрывает postgres_* (удобно для тестов и локального запуска).
     database_url: str | None = None
 
-    redis_url: str = "redis://redis:6379/0"
+    # Пусто — состояния диалогов хранятся в памяти (локальный запуск), после перезапуска сбросятся.
+    redis_url: str | None = "redis://redis:6379/0"
 
     # Прокси для запросов к Telegram, если с сервера api.telegram.org недоступен:
     # socks5://host:port или http://host:port. Быстрая установка поднимает Xray по VLESS-ссылке.
@@ -82,7 +83,9 @@ class Settings(BaseSettings):
             return tuple(part.strip() for part in value.split(",") if part.strip())
         return value
 
-    @field_validator("trial_channel", "trial_channel_url", "telegram_proxy", mode="before")
+    @field_validator(
+        "trial_channel", "trial_channel_url", "telegram_proxy", "redis_url", mode="before"
+    )
     @classmethod
     def _empty_to_none(cls, value: object) -> object:
         return value or None

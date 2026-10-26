@@ -18,6 +18,19 @@ Telegram-бот для продажи VPN-подписок. Подписки в�
 Python 3.12, aiogram 3, PostgreSQL + SQLAlchemy 2 + Alembic, Redis, Fluent для переводов,
 Docker Compose. Зависимости ставятся через [uv](https://docs.astral.sh/uv/).
 
+## Запуск на своём компьютере (Windows)
+
+Без сервера, Docker, Postgres и Redis: база — файл `octo.db`, состояния диалогов в памяти.
+
+1. Скачайте код: [ZIP ветки](https://github.com/lxzrl/octo_vpn/archive/refs/heads/claude/project-thread-dhlako.zip),
+   распакуйте.
+2. Дважды щёлкните `start-local.bat`. В первый раз он поставит [uv](https://docs.astral.sh/uv/)
+   (он сам скачает Python) и спросит токен бота, ваш Telegram ID и VLESS-ссылку.
+3. Бот работает, пока открыто окно. Telegram должен открываться на компьютере (например, с
+   включённым VPN).
+
+Режим тот же, что у быстрой установки: всем выдаётся ваша VLESS-ссылка, остальное настоящее.
+
 ## Быстрая установка для теста
 
 Один сервер, без панели Remnawave: бот, база и Xray-клиент. Нужны токен бота, ваш Telegram ID

@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 
 from app.config import Settings, get_settings
 from app.db.models import User
-from app.db.session import create_engine, create_session_factory
+from app.db.session import create_engine, create_session_factory, prepare_sqlite
 from app.main import create_bot, create_panel
 from app.services.options import load_options
 from app.vpn.panel import PanelError
@@ -30,6 +30,8 @@ async def check(settings: Settings) -> bool:
     results = []
     bot = create_bot(settings)
     engine = create_engine(settings.db_url)
+    if engine.dialect.name == "sqlite":
+        await prepare_sqlite(engine)
     try:
         try:
             me = await bot.get_me()
@@ -53,14 +55,17 @@ async def check(settings: Settings) -> bool:
         except Exception as error:
             results.append(report(False, f"База: {error!r}"))
 
-        redis = Redis.from_url(settings.redis_url)
-        try:
-            await redis.ping()
-            results.append(report(True, "Redis"))
-        except Exception as error:
-            results.append(report(False, f"Redis: {error!r}"))
-        finally:
-            await redis.aclose()
+        if settings.redis_url:
+            redis = Redis.from_url(settings.redis_url)
+            try:
+                await redis.ping()
+                results.append(report(True, "Redis"))
+            except Exception as error:
+                results.append(report(False, f"Redis: {error!r}"))
+            finally:
+                await redis.aclose()
+        else:
+            print("➖ Redis не задан: состояния диалогов в памяти")
 
         url = settings.remnawave_url
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as http:

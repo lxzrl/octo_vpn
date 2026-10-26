@@ -7,6 +7,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.base import BaseStorage
+from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.types import BotCommand
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -18,7 +19,7 @@ from app.bot.middlewares.options import OptionsMiddleware
 from app.bot.middlewares.user import UserMiddleware
 from app.bot.notify import AdminNotifier
 from app.config import Settings, get_settings
-from app.db.session import create_engine, create_session_factory
+from app.db.session import create_engine, create_session_factory, prepare_sqlite
 from app.i18n import TranslatorHub
 from app.vpn.demo import DemoPanel
 from app.vpn.panel import VpnPanel
@@ -87,6 +88,8 @@ def create_panel(settings: Settings, http: aiohttp.ClientSession) -> VpnPanel:
 
 async def run(settings: Settings) -> None:
     engine = create_engine(settings.db_url)
+    if engine.dialect.name == "sqlite":
+        await prepare_sqlite(engine)
     bot = create_bot(settings)
     http = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15))
     panel = create_panel(settings, http)
@@ -98,7 +101,7 @@ async def run(settings: Settings) -> None:
         session_factory,
         translators,
         panel,
-        RedisStorage.from_url(settings.redis_url),
+        RedisStorage.from_url(settings.redis_url) if settings.redis_url else MemoryStorage(),
         admins,
     )
     jobs = BackgroundJobs(bot, session_factory, panel, translators, settings, admins)
