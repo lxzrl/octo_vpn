@@ -15,6 +15,9 @@ btn-support = 💬 Support
 btn-profile = 👤 Profile
 btn-back = ⬅️ Back
 btn-change-language = 🌐 Change language
+btn-change-theme = 🎨 Change theme
+choose-theme = 🎨 Choose how the bot looks. You can change it any time in your profile.
+theme-unavailable = This theme is no longer available
 
 profile =
     👤 <b>Profile</b>
@@ -23,6 +26,7 @@ profile =
     Member since: { $registered }
     Language: { $language }
     Balance: { $balance }
+    Theme: { $theme }
 
 btn-trial = 🎁 Try for free
 btn-connect = 📲 How to connect

@@ -16,6 +16,7 @@ class MenuAction(StrEnum):
     PROMO = "promo"
     SUPPORT_WRITE = "sup_write"
     SUPPORT_CLOSE = "sup_close"
+    THEME = "theme"
 
 
 class MenuCallback(CallbackData, prefix="menu"):
@@ -24,6 +25,12 @@ class MenuCallback(CallbackData, prefix="menu"):
 
 class LanguageCallback(CallbackData, prefix="setlang"):
     code: str
+
+
+class ThemeCallback(CallbackData, prefix="settheme"):
+    theme_id: int
+    # Выбор при первом запуске: после него показываем главное меню, а не профиль.
+    onboarding: bool = False
 
 
 class Platform(StrEnum):
@@ -73,6 +80,13 @@ class AdminAction(StrEnum):
     TICKET = "ticket"
     TICKET_REPLY = "ticket_reply"
     TICKET_CLOSE = "ticket_close"
+    DESIGN = "design"
+    THEME = "theme"
+    THEME_NEW = "theme_new"
+    THEME_TOGGLE = "theme_tgl"
+    THEME_DELETE = "theme_del"
+    IMAGE = "image"
+    IMAGE_REMOVE = "image_rm"
 
 
 class AdminCallback(CallbackData, prefix="adm"):

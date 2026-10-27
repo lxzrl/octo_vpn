@@ -17,6 +17,7 @@ from app.bot.broadcast import Broadcaster
 from app.bot.handlers import admin, buy, referral, start, subscription, support
 from app.bot.middlewares.db import DbSessionMiddleware
 from app.bot.middlewares.options import OptionsMiddleware
+from app.bot.middlewares.theme import ThemeMiddleware
 from app.bot.middlewares.user import UserMiddleware
 from app.bot.notify import AdminNotifier
 from app.config import Settings, get_settings
@@ -46,6 +47,7 @@ def build_dispatcher(
     dp.update.outer_middleware(DbSessionMiddleware(session_factory))
     dp.update.outer_middleware(UserMiddleware(translators))
     dp.update.outer_middleware(OptionsMiddleware(settings))
+    dp.update.outer_middleware(ThemeMiddleware())
     # Админка первой: её ввод (ответ на обращение, рассылка) не должен уйти в другие разделы.
     dp.include_router(admin.create_router())
     dp.include_router(subscription.create_router())

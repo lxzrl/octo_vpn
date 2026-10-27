@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, TelegramObject
 
 from app.bot.callbacks import AdminAction, AdminCallback
-from app.bot.handlers.admin import broadcast, catalog, menu, settings, tickets, users
+from app.bot.handlers.admin import broadcast, catalog, design, menu, settings, tickets, users
 from app.bot.handlers.admin.common import AdminInput, IsAdmin
 
 # Кнопки, которые продолжают начатый ввод: на них состояние не сбрасывается.
@@ -44,6 +44,6 @@ def create_router() -> Router:
     router.message.filter(IsAdmin())
     router.callback_query.filter(IsAdmin())
     router.callback_query.outer_middleware(ResetInputMiddleware())
-    for module in (menu, users, catalog, settings, broadcast, tickets):
+    for module in (menu, users, catalog, settings, design, broadcast, tickets):
         router.include_router(module.create_router())
     return router

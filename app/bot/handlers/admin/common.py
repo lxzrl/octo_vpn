@@ -30,6 +30,9 @@ class AdminInput(StatesGroup):
     option = State()
     broadcast = State()
     ticket_reply = State()
+    image = State()
+    theme_name = State()
+    theme_name_en = State()
 
 
 def button(

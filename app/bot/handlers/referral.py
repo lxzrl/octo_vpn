@@ -12,6 +12,7 @@ from app.i18n import Translator
 from app.services.money import rub
 from app.services.options import Options
 from app.services.referrals import referral_stats
+from app.services.themes import Screen, ThemeImages
 from app.services.users import referral_link
 
 
@@ -22,6 +23,7 @@ async def on_referrals(
     user: User,
     i18n: Translator,
     options: Options,
+    images: ThemeImages,
 ) -> None:
     me = await bot.me()
     link = referral_link(me.username or "", user.id)
@@ -38,7 +40,7 @@ async def on_referrals(
     share_url = (
         f"https://t.me/share/url?url={quote(link)}&text={quote(i18n('referral-share-text'))}"
     )
-    await show(callback, text, referral_keyboard(i18n, share_url))
+    await show(callback, text, referral_keyboard(i18n, share_url), images.of(Screen.REFERRAL))
 
 
 def create_router() -> Router:

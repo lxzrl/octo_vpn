@@ -22,9 +22,10 @@ def menu_keyboard(i18n: Translator, open_tickets: int) -> InlineKeyboardMarkup:
     button(builder, i18n("adm-btn-plans"), AdminAction.PLANS)
     button(builder, i18n("adm-btn-promos"), AdminAction.PROMOS)
     button(builder, i18n("adm-btn-options"), AdminAction.OPTIONS)
+    button(builder, i18n("adm-btn-design"), AdminAction.DESIGN)
     button(builder, i18n("adm-btn-broadcast"), AdminAction.BROADCAST)
     builder.button(text=i18n("adm-btn-to-bot"), callback_data=MenuCallback(action=MenuAction.MAIN))
-    builder.adjust(2, 1, 2, 1, 1, 1)
+    builder.adjust(2, 1, 2, 2, 1, 1)
     return builder.as_markup()
 
 

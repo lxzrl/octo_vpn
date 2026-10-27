@@ -35,6 +35,8 @@ class User(TimestampMixin, Base):
     trial_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Внутренний баланс в копейках: реферальные начисления и промокоды. Вывести нельзя.
     balance_kop: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
+    # Тема оформления (набор картинок). None — тема по умолчанию («Светлая»).
+    theme_id: Mapped[int | None] = mapped_column(ForeignKey("themes.id", ondelete="SET NULL"))
 
 
 class Subscription(TimestampMixin, Base):
@@ -209,3 +211,30 @@ class TicketMessage(Base):
     text: Mapped[str] = mapped_column(Text, default="")
     photo_file_id: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Theme(TimestampMixin, Base):
+    """Тема оформления: набор картинок к экранам бота. Пользователь выбирает тему сам."""
+
+    __tablename__ = "themes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # light и dark — встроенные темы, их нельзя удалить; у сезонных тем кода нет.
+    code: Mapped[str | None] = mapped_column(String(16), unique=True)
+    name: Mapped[str] = mapped_column(String(64))
+    name_en: Mapped[str] = mapped_column(String(64))
+    # Скрытую тему нельзя выбрать, у тех, кто её выбрал, показывается тема по умолчанию.
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
+class ThemeImage(Base):
+    """Картинка темы для одного экрана (file_id фото в Telegram)."""
+
+    __tablename__ = "theme_images"
+
+    theme_id: Mapped[int] = mapped_column(
+        ForeignKey("themes.id", ondelete="CASCADE"), primary_key=True
+    )
+    screen: Mapped[str] = mapped_column(String(16), primary_key=True)
+    file_id: Mapped[str] = mapped_column(String(255))

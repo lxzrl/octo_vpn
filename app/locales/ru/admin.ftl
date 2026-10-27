@@ -9,6 +9,7 @@ adm-btn-plans = 💳 Тарифы
 adm-btn-promos = 🎟 Промокоды
 adm-btn-options = ⚙️ Настройки
 adm-btn-broadcast = 📢 Рассылка
+adm-btn-design = 🎨 Оформление
 adm-btn-back = ⬅️ Назад
 adm-btn-to-bot = 🏠 В меню бота
 adm-btn-cancel = ✖️ Отмена
@@ -239,3 +240,47 @@ adm-payment =
        *[other] {" "}(⭐ { $stars })
     }
     С баланса: { $balance } · скидка: { $discount }
+
+## Оформление
+
+adm-design =
+    🎨 <b>Оформление</b>
+
+    Тема — это набор картинок к экранам бота. Пользователь выбирает тему после языка и может
+    сменить её в профиле. Если в теме нет картинки для экрана, берётся её картинка главного
+    меню, а если нет и её — картинка темы «Светлая». 🙈 — тема скрыта.
+adm-btn-theme-new = ➕ Новая тема
+adm-theme =
+    🎨 <b>{ $name }</b> (англ.: { $name_en })
+
+    { $status }
+
+    Выберите экран, чтобы загрузить или заменить картинку. ✅ — картинка есть.
+adm-theme-default = Тема по умолчанию: у новых пользователей и у тех, чья тема скрыта.
+adm-theme-active = Тема доступна пользователям.
+adm-theme-hidden = 🙈 Тема скрыта: её нельзя выбрать, а у тех, кто выбрал, показывается «Светлая».
+adm-btn-theme-hide = 🙈 Скрыть тему
+adm-btn-theme-show = 👁 Показать тему
+adm-btn-theme-delete = 🗑 Удалить тему
+adm-btn-theme-delete-confirm = 🗑 Да, удалить
+adm-theme-delete-confirm = Удалить тему { $name } вместе с картинками? Пользователи с этой темой перейдут на «Светлую».
+adm-theme-deleted = Тема удалена
+adm-theme-name-prompt = Название новой темы, например «🎃 Хэллоуин» (до 64 символов).
+adm-theme-name-en-prompt = Название по-английски для англоязычных пользователей, например «🎃 Halloween». «-» — то же, что по-русски.
+adm-theme-created = ✅ Тема создана. Загрузите картинки: хватит и одной, для главного меню.
+adm-screen-main = Главное меню
+adm-screen-profile = Профиль
+adm-screen-subscription = Подписка
+adm-screen-connect = Подключение
+adm-screen-buy = Покупка
+adm-screen-referral = Рефералка
+adm-screen-support = Поддержка
+adm-image = 🖼 <b>{ $theme } · { $screen }</b>
+
+    { $status }
+adm-image-set = Сейчас стоит эта картинка. Пришлите новое фото, чтобы заменить её.
+adm-image-empty = Картинки нет. Пришлите фото (лучше горизонтальное), и оно появится над этим экраном.
+adm-btn-image-remove = 🗑 Убрать картинку
+adm-image-saved = ✅ Картинка сохранена.
+adm-image-removed = Картинка убрана
+adm-image-not-photo = Пришлите картинку как фото, а не файлом.

@@ -161,7 +161,13 @@ def photo(caption: str | None, from_user: User = TG_USER) -> Update:
     )
 
 
-def callback(data: str, from_user: User = TG_USER) -> Update:
+def callback(data: str, from_user: User = TG_USER, with_photo: bool = False) -> Update:
+    """Нажатие кнопки под экраном; with_photo — экран был сообщением с картинкой."""
+    screen = (
+        {"photo": [PhotoSize(file_id="old", file_unique_id="u0", width=10, height=10)]}
+        if with_photo
+        else {"text": "old"}
+    )
     return Update(
         update_id=next(ids),
         callback_query=CallbackQuery(
@@ -173,7 +179,7 @@ def callback(data: str, from_user: User = TG_USER) -> Update:
                 message_id=1,
                 date=datetime.now(UTC),
                 chat=Chat(id=from_user.id, type="private"),
-                text="old",
+                **screen,
             ),
         ),
     )

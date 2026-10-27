@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
@@ -11,10 +13,12 @@ from app.bot.callbacks import (
     PlanCallback,
     Platform,
     PlatformCallback,
+    ThemeCallback,
 )
-from app.db.models import Plan
+from app.db.models import Plan, Theme
 from app.i18n import Translator
 from app.services.money import rub
+from app.services.themes import theme_name
 
 LANGUAGE_BUTTONS = (("ru", "🇷🇺 Русский"), ("en", "🇬🇧 English"))
 
@@ -62,8 +66,32 @@ def profile_keyboard(i18n: Translator) -> InlineKeyboardMarkup:
     builder.button(
         text=i18n("btn-change-language"), callback_data=MenuCallback(action=MenuAction.LANGUAGE)
     )
+    builder.button(
+        text=i18n("btn-change-theme"), callback_data=MenuCallback(action=MenuAction.THEME)
+    )
     builder.button(text=i18n("btn-back"), callback_data=MenuCallback(action=MenuAction.MAIN))
-    builder.adjust(1)
+    builder.adjust(2, 1)
+    return builder.as_markup()
+
+
+def theme_keyboard(
+    i18n: Translator,
+    themes: Sequence[Theme],
+    current_id: int | None,
+    language: str | None,
+    onboarding: bool = False,
+) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for theme in themes:
+        mark = "✓ " if theme.id == current_id else ""
+        builder.button(
+            text=mark + theme_name(theme, language),
+            callback_data=ThemeCallback(theme_id=theme.id, onboarding=onboarding),
+        )
+    builder.adjust(2)
+    if not onboarding:
+        builder.row()
+        builder.button(text=i18n("btn-back"), callback_data=MenuCallback(action=MenuAction.PROFILE))
     return builder.as_markup()
 
 

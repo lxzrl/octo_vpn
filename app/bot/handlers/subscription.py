@@ -30,6 +30,7 @@ from app.services.subscriptions import (
     get_subscription,
     trial_status,
 )
+from app.services.themes import Screen, ThemeImages
 from app.vpn.panel import PanelError, VpnPanel
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,7 @@ async def render_subscription(
     i18n: Translator,
     settings: Settings,
     options: Options,
+    images: ThemeImages,
     header: str = "",
 ) -> None:
     subscription = await get_subscription(session, user.id)
@@ -74,13 +76,19 @@ async def render_subscription(
         text = i18n(
             "no-subscription-trial" if available else "no-subscription", days=options.trial_days
         )
-        await show(callback, text, no_subscription_keyboard(i18n, available))
+        await show(
+            callback,
+            text,
+            no_subscription_keyboard(i18n, available),
+            images.of(Screen.SUBSCRIPTION),
+        )
         return
     active = as_utc(subscription.expires_at) > utcnow()
     await show(
         callback,
         subscription_text(i18n, subscription, settings, header),
         subscription_keyboard(i18n, subscription.subscription_url, active),
+        images.of(Screen.SUBSCRIPTION),
     )
 
 
@@ -91,8 +99,9 @@ async def on_subscription(
     i18n: Translator,
     settings: Settings,
     options: Options,
+    images: ThemeImages,
 ) -> None:
-    await render_subscription(callback, session, user, i18n, settings, options)
+    await render_subscription(callback, session, user, i18n, settings, options, images)
 
 
 async def on_trial(
@@ -105,6 +114,7 @@ async def on_trial(
     options: Options,
     panel: VpnPanel,
     admins: AdminNotifier,
+    images: ThemeImages,
 ) -> None:
     if not options.trial_enabled:
         await callback.answer(i18n("trial-disabled"), show_alert=True)
@@ -124,6 +134,7 @@ async def on_trial(
                 callback,
                 i18n("trial-need-channel", days=options.trial_days),
                 channel_keyboard(i18n, options.channel_url),
+                images.of(Screen.SUBSCRIPTION),
             )
             return
 
@@ -138,22 +149,28 @@ async def on_trial(
         await callback.answer(i18n("trial-already-used"), show_alert=True)
         return
     await render_subscription(
-        callback, session, user, i18n, settings, options, header=i18n("trial-activated")
+        callback, session, user, i18n, settings, options, images, header=i18n("trial-activated")
     )
 
 
-async def on_connect(callback: CallbackQuery, i18n: Translator) -> None:
-    await show(callback, i18n("connect-choose-platform"), platforms_keyboard(i18n))
+async def on_connect(callback: CallbackQuery, i18n: Translator, images: ThemeImages) -> None:
+    await show(
+        callback,
+        i18n("connect-choose-platform"),
+        platforms_keyboard(i18n),
+        images.of(Screen.CONNECT),
+    )
 
 
 async def on_platform(
-    callback: CallbackQuery, callback_data: PlatformCallback, i18n: Translator
+    callback: CallbackQuery, callback_data: PlatformCallback, i18n: Translator, images: ThemeImages
 ) -> None:
     platform = callback_data.platform
     await show(
         callback,
         i18n(f"connect-{platform.value}"),
         platform_keyboard(i18n, platform),
+        images.of(Screen.CONNECT),
     )
 
 

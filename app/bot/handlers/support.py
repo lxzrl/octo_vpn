@@ -14,6 +14,7 @@ from app.bot.notify import AdminNotifier
 from app.bot.ui import show
 from app.db.models import TicketMessage, User
 from app.i18n import Translator, TranslatorHub
+from app.services.themes import Screen, ThemeImages
 from app.services.tickets import add_user_message, close_ticket, open_ticket, ticket_messages
 
 # В истории обращения каждое сообщение укорачиваем, чтобы экран влез в лимит Telegram.
@@ -68,23 +69,34 @@ async def on_support(
     user: User,
     i18n: Translator,
     state: FSMContext,
+    images: ThemeImages,
 ) -> None:
     await state.clear()
+    image = images.of(Screen.SUPPORT)
     ticket = await open_ticket(session, user.id)
     if ticket is None:
-        await show(callback, i18n("support-intro"), support_keyboard(i18n, has_ticket=False))
+        await show(callback, i18n("support-intro"), support_keyboard(i18n, has_ticket=False), image)
         return
     history = history_text(i18n, await ticket_messages(session, ticket.id), for_admin=False)
+    # Длинная переписка не влезет в подпись к фото: тогда show() покажет её текстом.
     await show(
         callback,
         i18n("support-ticket", id=str(ticket.id), history=history),
         support_keyboard(i18n, has_ticket=True),
+        image,
     )
 
 
-async def on_support_write(callback: CallbackQuery, i18n: Translator, state: FSMContext) -> None:
+async def on_support_write(
+    callback: CallbackQuery, i18n: Translator, state: FSMContext, images: ThemeImages
+) -> None:
     await state.set_state(SupportInput.waiting_message)
-    await show(callback, i18n("support-write"), cancel_keyboard(i18n, MenuAction.SUPPORT))
+    await show(
+        callback,
+        i18n("support-write"),
+        cancel_keyboard(i18n, MenuAction.SUPPORT),
+        images.of(Screen.SUPPORT),
+    )
 
 
 async def on_support_message(
@@ -127,6 +139,7 @@ async def on_support_close(
     i18n: Translator,
     translators: TranslatorHub,
     admins: AdminNotifier,
+    images: ThemeImages,
 ) -> None:
     ticket = await open_ticket(session, user.id)
     if ticket is not None:
@@ -135,7 +148,12 @@ async def on_support_close(
             "adm-ticket-closed-by-user", id=str(ticket.id), user=user_label(user)
         )
         await admins.send(bot, notice)
-    await show(callback, i18n("support-closed"), support_keyboard(i18n, has_ticket=False))
+    await show(
+        callback,
+        i18n("support-closed"),
+        support_keyboard(i18n, has_ticket=False),
+        images.of(Screen.SUPPORT),
+    )
 
 
 def create_router() -> Router:

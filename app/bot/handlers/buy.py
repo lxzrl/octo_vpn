@@ -35,6 +35,7 @@ from app.services.payments import (
 )
 from app.services.promo import PromoApplied, apply_promo, pending_discount
 from app.services.subscriptions import active_plans, get_subscription
+from app.services.themes import Screen, ThemeImages
 from app.vpn.panel import PanelError, VpnPanel
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,12 @@ async def buy_screen_text(
 
 
 async def on_buy(
-    callback: CallbackQuery, session: AsyncSession, user: User, i18n: Translator, state: FSMContext
+    callback: CallbackQuery,
+    session: AsyncSession,
+    user: User,
+    i18n: Translator,
+    state: FSMContext,
+    images: ThemeImages,
 ) -> None:
     await state.clear()
     plans = await active_plans(session)
@@ -65,6 +71,7 @@ async def on_buy(
         callback,
         await buy_screen_text(session, user, i18n, bool(plans)),
         plans_keyboard(i18n, plans),
+        images.of(Screen.BUY),
     )
 
 
@@ -75,6 +82,7 @@ async def on_plan(
     user: User,
     i18n: Translator,
     options: Options,
+    images: ThemeImages,
 ) -> None:
     plan = await session.get(Plan, callback_data.plan_id)
     if plan is None or not plan.is_active or plan.price_rub is None:
@@ -97,7 +105,12 @@ async def on_plan(
         lines.append(i18n("checkout-total-stars", amount=rub(quote.to_pay_kop), stars=quote.stars))
     else:
         lines.append(i18n("checkout-total-balance"))
-    await show(callback, "\n".join(lines), checkout_keyboard(i18n, plan.id, quote.stars))
+    await show(
+        callback,
+        "\n".join(lines),
+        checkout_keyboard(i18n, plan.id, quote.stars),
+        images.of(Screen.BUY),
+    )
 
 
 async def finish_payment(
@@ -233,9 +246,16 @@ async def on_successful_payment(
     )
 
 
-async def on_promo(callback: CallbackQuery, i18n: Translator, state: FSMContext) -> None:
+async def on_promo(
+    callback: CallbackQuery, i18n: Translator, state: FSMContext, images: ThemeImages
+) -> None:
     await state.set_state(PromoInput.waiting_code)
-    await show(callback, i18n("promo-enter"), cancel_keyboard(i18n, MenuAction.BUY))
+    await show(
+        callback,
+        i18n("promo-enter"),
+        cancel_keyboard(i18n, MenuAction.BUY),
+        images.of(Screen.BUY),
+    )
 
 
 async def on_promo_code(
