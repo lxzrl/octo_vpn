@@ -126,6 +126,7 @@ async def test_theme_is_chosen_after_language_and_in_profile(
     async with session_factory() as session:
         await set_theme_image(session, themes["light"], Screen.MAIN, "light-main")
         await set_theme_image(session, themes["dark"], Screen.MAIN, "dark-main")
+        await set_theme_image(session, themes["light"], Screen.THEME, "light-theme")
         await session.commit()
 
     await dp.feed_update(bot, message("/start"))
@@ -133,6 +134,7 @@ async def test_theme_is_chosen_after_language_and_in_profile(
     # После языка — выбор темы, а не главное меню.
     screen = fake.calls[-2]
     assert isinstance(screen, SendPhoto) and "оформление" in (screen.caption or "")
+    assert screen.photo == "light-theme"
     assert keyboard(screen) == ["✓ ☀️ Светлая", "🌙 Тёмная"]
 
     fake.calls.clear()
@@ -190,7 +192,7 @@ async def test_admin_creates_theme_and_uploads_image(
     await dp.feed_update(bot, message("/start"))
     await dp.feed_update(bot, callback(LanguageCallback(code="ru").pack()))
     await dp.feed_update(bot, callback(adm(AdminAction.DESIGN)))
-    assert "☀️ Светлая · 🖼 0/7" in keyboard(fake.calls[-2])
+    assert "☀️ Светлая · 🖼 0/8" in keyboard(fake.calls[-2])
 
     await dp.feed_update(bot, callback(adm(AdminAction.THEME_NEW)))
     await dp.feed_update(bot, message("🎃 Хэллоуин"))

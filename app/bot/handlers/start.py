@@ -83,7 +83,7 @@ async def show_themes(
         callback,
         i18n("choose-theme"),
         theme_keyboard(i18n, themes, current.id if current else None, user.language, onboarding),
-        images.of(Screen.PROFILE),
+        images.of(Screen.THEME),
     )
     return True
 

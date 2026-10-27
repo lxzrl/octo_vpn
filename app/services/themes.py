@@ -23,6 +23,7 @@ class Screen(StrEnum):
 
     MAIN = "main"
     PROFILE = "profile"
+    THEME = "theme"
     SUBSCRIPTION = "subscription"
     CONNECT = "connect"
     BUY = "buy"

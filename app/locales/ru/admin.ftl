@@ -270,6 +270,7 @@ adm-theme-name-en-prompt = Название по-английски для ан�
 adm-theme-created = ✅ Тема создана. Загрузите картинки: хватит и одной, для главного меню.
 adm-screen-main = Главное меню
 adm-screen-profile = Профиль
+adm-screen-theme = Выбор темы
 adm-screen-subscription = Подписка
 adm-screen-connect = Подключение
 adm-screen-buy = Покупка
