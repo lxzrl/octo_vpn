@@ -25,6 +25,7 @@ from aiogram.types import (
     Chat,
     ChatMemberLeft,
     ChatMemberMember,
+    Document,
     Message,
     MessageId,
     PhotoSize,
@@ -100,8 +101,15 @@ class FakeSession(BaseSession):
                 message_id=1, date=datetime.now(UTC), chat=CHAT, text=method.title
             )
         if isinstance(method, SendPhoto):
+            # Загруженный файлом снимок получает новый file_id, как в настоящем Telegram.
+            file_id = method.photo if isinstance(method.photo, str) else "uploaded-photo"
+            size = PhotoSize(file_id=file_id, file_unique_id="u", width=10, height=10)
             return Message(  # type: ignore[return-value]
-                message_id=1, date=datetime.now(UTC), chat=CHAT, caption=method.caption
+                message_id=1,
+                date=datetime.now(UTC),
+                chat=CHAT,
+                caption=method.caption,
+                photo=[size],
             )
         if isinstance(method, CopyMessage):
             return MessageId(message_id=1)  # type: ignore[return-value]
@@ -157,6 +165,25 @@ def photo(caption: str | None, from_user: User = TG_USER) -> Update:
             from_user=from_user,
             caption=caption,
             photo=[PhotoSize(file_id="photo-1", file_unique_id="u1", width=10, height=10)],
+        ),
+    )
+
+
+def document(mime_type: str, size: int = 1000, from_user: User = TG_USER) -> Update:
+    return Update(
+        update_id=next(ids),
+        message=Message(
+            message_id=next(ids),
+            date=datetime.now(UTC),
+            chat=Chat(id=from_user.id, type="private"),
+            from_user=from_user,
+            document=Document(
+                file_id="doc-1",
+                file_unique_id="d1",
+                file_name="banner.png",
+                mime_type=mime_type,
+                file_size=size,
+            ),
         ),
     )
 

@@ -1,3 +1,6 @@
+from io import BytesIO
+from typing import Any
+
 import pytest
 from aiogram import Bot, Dispatcher
 from aiogram.methods import EditMessageMedia, EditMessageText, SendMessage, SendPhoto
@@ -27,7 +30,7 @@ from app.services.themes import (
     images_for,
     set_theme_image,
 )
-from tests.fakes import TG_USER, FakePanel, FakeSession, callback, message, photo
+from tests.fakes import TG_USER, FakePanel, FakeSession, callback, document, message, photo
 
 ADMIN = TG_USER
 
@@ -217,3 +220,34 @@ async def test_admin_creates_theme_and_uploads_image(
     await dp.feed_update(bot, callback(adm(AdminAction.THEME_TOGGLE, theme.id), with_photo=True))
     await dp.feed_update(bot, callback(MenuCallback(action=MenuAction.THEME).pack()))
     assert "🎃 Хэллоуин" not in keyboard(fake.calls[-2])
+
+
+async def test_admin_uploads_image_as_file(
+    dp: Dispatcher,
+    bot: Bot,
+    fake: FakeSession,
+    themes: dict[str, int],
+    session_factory: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def download(self: Bot, file: Any, *args: Any, **kwargs: Any) -> BytesIO:
+        return BytesIO(b"png-bytes")
+
+    monkeypatch.setattr(Bot, "download", download)
+    await dp.feed_update(bot, message("/start"))
+    await dp.feed_update(bot, callback(LanguageCallback(code="ru").pack()))
+    image = AdminCallback(action=AdminAction.IMAGE, id=themes["dark"], value=Screen.MAIN).pack()
+    await dp.feed_update(bot, callback(image))
+
+    await dp.feed_update(bot, document("application/pdf"))
+    assert "JPG, PNG или WebP" in fake.calls[-1].text  # type: ignore[attr-defined]
+    await dp.feed_update(bot, document("image/png", size=11 * 1024 * 1024))
+    assert "больше 10 МБ" in fake.calls[-1].text  # type: ignore[attr-defined]
+
+    await dp.feed_update(bot, document("image/png"))
+    sent = fake.calls[-1]
+    assert isinstance(sent, SendPhoto) and not isinstance(sent.photo, str)
+    assert "Картинка сохранена" in (sent.caption or "")
+    async with session_factory() as session:
+        saved = await session.get(ThemeImage, (themes["dark"], Screen.MAIN.value))
+        assert saved is not None and saved.file_id == "uploaded-photo"

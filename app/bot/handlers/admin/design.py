@@ -2,10 +2,17 @@
 
 import html
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    BufferedInputFile,
+    CallbackQuery,
+    Document,
+    InlineKeyboardMarkup,
+    Message,
+)
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +33,9 @@ from app.services.themes import (
 )
 
 CONFIRM = "ok"
+# Картинки файлом: форматы, которые Telegram принимает как фото, и его лимит на фото.
+IMAGE_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
+PHOTO_MAX_BYTES = 10 * 1024 * 1024
 
 
 def design_keyboard(i18n: Translator, themes: list[tuple[Theme, int]]) -> InlineKeyboardMarkup:
@@ -260,8 +270,38 @@ async def on_image_remove(
     await show(callback, *await theme_screen(session, i18n, theme))
 
 
+def is_image_file(document: Document | None) -> bool:
+    return document is not None and (document.mime_type or "") in IMAGE_TYPES
+
+
+async def reupload_as_photo(
+    bot: Bot, message: Message, caption: str, markup: InlineKeyboardMarkup
+) -> str | None:
+    """Картинка, присланная файлом: показать её над экраном можно только как фото.
+
+    Скачиваем файл и отправляем его админу фотографией — file_id этого фото и сохраняем.
+    None — файл не подошёл (слишком большой или Telegram не принял его как фото).
+    """
+    document = message.document
+    assert document is not None
+    if (document.file_size or 0) > PHOTO_MAX_BYTES:
+        return None
+    try:
+        data = await bot.download(document)
+        assert data is not None
+        sent = await message.answer_photo(
+            BufferedInputFile(data.read(), document.file_name or "image"),
+            caption=caption,
+            reply_markup=markup,
+        )
+    except TelegramBadRequest:
+        return None
+    return sent.photo[-1].file_id if sent.photo else None
+
+
 async def on_image_upload(
     message: Message,
+    bot: Bot,
     session: AsyncSession,
     translators: TranslatorHub,
     state: FSMContext,
@@ -274,13 +314,21 @@ async def on_image_upload(
         await state.clear()
         await message.answer(i18n("adm-not-found"))
         return
-    if not message.photo:
+    text = f"{i18n('adm-image-saved')}\n\n{image_text(i18n, theme, screen, True)}"
+    markup = image_keyboard(i18n, theme.id, screen, True)
+    photo: str | None
+    if message.photo:
+        photo = message.photo[-1].file_id
+        await send_screen(message, text, markup, photo)
+    elif is_image_file(message.document):
+        photo = await reupload_as_photo(bot, message, text, markup)
+        if photo is None:
+            await message.answer(i18n("adm-image-bad-file"))
+            return
+    else:
         await message.answer(i18n("adm-image-not-photo"))
         return
-    photo = message.photo[-1].file_id
     await set_theme_image(session, theme.id, screen, photo)
-    text = f"{i18n('adm-image-saved')}\n\n{image_text(i18n, theme, screen, True)}"
-    await send_screen(message, text, image_keyboard(i18n, theme.id, screen, True), photo)
 
 
 def create_router() -> Router:
