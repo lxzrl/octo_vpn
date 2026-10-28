@@ -2,7 +2,7 @@
 
 import html
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
@@ -14,6 +14,7 @@ from app.bot.handlers.admin.common import AdminInput, button, cancel_keyboard
 from app.bot.ui import show
 from app.config import Settings
 from app.i18n import Translator, TranslatorHub
+from app.services.channel import bot_channel_problem
 from app.services.options import InvalidOption, OptionKey, Options, load_options, set_option
 
 # Что можно ввести текстом. Пробный период включается и выключается кнопкой.
@@ -89,6 +90,7 @@ async def on_option(
 
 async def on_option_value(
     message: Message,
+    bot: Bot,
     session: AsyncSession,
     translators: TranslatorHub,
     settings: Settings,
@@ -107,6 +109,15 @@ async def on_option_value(
     await state.clear()
     options = await load_options(session, settings)
     text = f"{i18n('adm-option-saved')}\n\n{options_text(i18n, options)}"
+    # Канал сразу проверяем: без прав администратора бот не увидит подписчиков.
+    if key == OptionKey.TRIAL_CHANNEL and options.trial_channel:
+        problem = await bot_channel_problem(bot, options.trial_channel)
+        status = (
+            i18n("adm-channel-bad", problem=html.escape(problem))
+            if problem
+            else i18n("adm-channel-ok")
+        )
+        text = f"{text}\n\n{status}"
     await message.answer(text, reply_markup=options_keyboard(i18n, options))
 
 

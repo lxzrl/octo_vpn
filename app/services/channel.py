@@ -22,3 +22,16 @@ async def is_subscribed(bot: Bot, channel: str, user_id: int) -> bool:
     if member.status == ChatMemberStatus.RESTRICTED:
         return bool(getattr(member, "is_member", False))
     return member.status in SUBSCRIBED
+
+
+async def bot_channel_problem(bot: Bot, channel: str) -> str | None:
+    """Почему бот не сможет проверять подписку на канал; None — всё в порядке."""
+    try:
+        me = await bot.me()
+        member = await bot.get_chat_member(channel, me.id)
+    except TelegramAPIError as error:
+        return str(error)
+    if member.status not in (ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR):
+        status = ChatMemberStatus(member.status).value
+        return f"бот в канале со статусом «{status}», а нужен администратор"
+    return None

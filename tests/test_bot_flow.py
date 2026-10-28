@@ -34,7 +34,16 @@ from app.db.models import User as DbUser
 from app.i18n import TranslatorHub
 from app.main import build_dispatcher
 from app.vpn.demo import DemoPanel
-from tests.fakes import CHAT, TG_USER, FakePanel, FakeSession, callback, ids, message
+from tests.fakes import (
+    CHAT,
+    TG_USER,
+    FakePanel,
+    FakeSession,
+    callback,
+    ids,
+    message,
+    sent_to,
+)
 
 
 @pytest.fixture
@@ -177,6 +186,25 @@ async def test_trial_requires_channel(
     fake.channel_member = True
     await dp.feed_update(bot, menu(MenuAction.TRIAL))
     assert "Пробный период активирован" in last_text(fake)
+
+
+async def test_trial_channel_check_failure_is_reported_to_admins(
+    session_factory: async_sessionmaker[AsyncSession],
+    bot: Bot,
+    fake: FakeSession,
+    panel: FakePanel,
+) -> None:
+    settings = Settings(bot_token="42:TEST", admin_ids="7", trial_channel="@octo_news")
+    dp = build_dispatcher(settings, session_factory, TranslatorHub("ru"), panel)
+    fake.channel_error = "Bad Request: member list is inaccessible"
+    await registered(dp, bot)
+
+    await dp.feed_update(bot, menu(MenuAction.TRIAL))
+    assert any(isinstance(c, AnswerCallbackQuery) and c.show_alert for c in fake.calls)
+    alert = sent_to(fake, 7)[-1]
+    assert "@octo_news" in alert and "member list is inaccessible" in alert
+    assert "администратор канала" in alert
+    assert panel.users == {}
 
 
 async def test_trial_when_panel_is_down(

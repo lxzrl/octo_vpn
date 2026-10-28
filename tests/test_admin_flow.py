@@ -32,6 +32,7 @@ from app.db.models import User as DbUser
 from app.i18n import TranslatorHub
 from app.main import build_dispatcher
 from app.services.clock import as_utc, utcnow
+from app.services.options import OptionKey
 from tests.fakes import TG_USER, FakePanel, FakeSession, callback, message, photo, sent_to
 
 ADMIN = TG_USER
@@ -380,3 +381,18 @@ async def test_second_admin_from_comma_separated_ids(
     assert "🛠 Админка" in buttons(fake)
     await dp.feed_update(bot, message("/admin", BOB))
     assert "Админка" in sent_to(fake, BOB.id)[-1]
+
+
+async def test_saving_channel_checks_bot_rights(
+    dp: Dispatcher, bot: Bot, fake: FakeSession
+) -> None:
+    await register(dp, bot, ADMIN)
+    option = adm(AdminAction.OPTION, value=OptionKey.TRIAL_CHANNEL)
+    await dp.feed_update(bot, callback(option))
+    await dp.feed_update(bot, message("@octo_news"))
+    assert "бот в канале со статусом «member»" in last(fake)
+
+    fake.bot_is_channel_admin = True
+    await dp.feed_update(bot, callback(option))
+    await dp.feed_update(bot, message("@octo_news"))
+    assert "Бот — администратор канала" in last(fake)

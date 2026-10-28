@@ -126,8 +126,17 @@ async def on_trial(
     if options.trial_channel:
         try:
             subscribed = await is_subscribed(bot, options.trial_channel, user.id)
-        except ChannelCheckError:
+        except ChannelCheckError as error:
             await callback.answer(i18n("error-try-later"), show_alert=True)
+            await admins.error(
+                bot,
+                "channel",
+                f"Не удалось проверить подписку на {html.escape(options.trial_channel)} для "
+                f"пробного периода: {html.escape(str(error))}\n\n"
+                "Проверьте, что бот — администратор канала, а в "
+                "/admin → Настройки → Канал указан @username канала (или -100… для "
+                "приватного). Пока это не исправлено, пробный период никому не выдаётся.",
+            )
             return
         if not subscribed:
             await show(

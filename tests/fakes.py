@@ -8,7 +8,7 @@ from typing import Any
 
 from aiogram import Bot
 from aiogram.client.session.base import BaseSession
-from aiogram.exceptions import TelegramForbiddenError
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.methods import (
     CopyMessage,
     EditMessageText,
@@ -25,6 +25,7 @@ from aiogram.types import (
     Chat,
     ChatMemberLeft,
     ChatMemberMember,
+    ChatMemberOwner,
     Document,
     Message,
     MessageId,
@@ -71,6 +72,9 @@ CHAT = Chat(id=100, type="private")
 TG_USER = User(id=100, is_bot=False, first_name="Alice", language_code="ru")
 
 
+BOT_ID = 1
+
+
 class FakeSession(BaseSession):
     """Вместо Telegram API запоминает вызовы бота и возвращает правдоподобные ответы."""
 
@@ -78,6 +82,10 @@ class FakeSession(BaseSession):
         super().__init__()
         self.calls: list[TelegramMethod[Any]] = []
         self.channel_member = False
+        # Ответ Telegram на проверку подписки, когда бот не админ канала.
+        self.channel_error: str | None = None
+        # Бот — владелец/админ канала (для проверки при сохранении канала в админке).
+        self.bot_is_channel_admin = False
         # Чаты, где бот заблокирован: отправка в них падает с Forbidden.
         self.blocked: set[int] = set()
 
@@ -114,8 +122,14 @@ class FakeSession(BaseSession):
         if isinstance(method, CopyMessage):
             return MessageId(message_id=1)  # type: ignore[return-value]
         if isinstance(method, GetMe):
-            return User(id=1, is_bot=True, first_name="Octo", username="octo_bot")  # type: ignore[return-value]
+            return User(id=BOT_ID, is_bot=True, first_name="Octo", username="octo_bot")  # type: ignore[return-value]
         if isinstance(method, GetChatMember):
+            if self.channel_error:
+                raise TelegramBadRequest(method, self.channel_error)
+            if method.user_id == BOT_ID:
+                if self.bot_is_channel_admin:
+                    return ChatMemberOwner(user=TG_USER, is_anonymous=False)  # type: ignore[return-value]
+                return ChatMemberMember(user=TG_USER)  # type: ignore[return-value]
             member = ChatMemberMember if self.channel_member else ChatMemberLeft
             return member(user=TG_USER)  # type: ignore[return-value]
         return True  # type: ignore[return-value]
