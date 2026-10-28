@@ -1,0 +1,14 @@
+# Бот на одном сервере с панелью: подключаем его к сети remnawave-network,
+# тогда API панели доступен напрямую по http://remnawave:3000, мимо Caddy и интернета.
+#
+#   docker compose -f docker-compose.yml -f deploy/bot/panel-network.yml up -d --build
+services:
+  bot:
+    networks:
+      - default
+      - remnawave-network
+
+networks:
+  remnawave-network:
+    name: remnawave-network
+    external: true
